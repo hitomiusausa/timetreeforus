@@ -9,6 +9,7 @@ import {
   PencilLine,
   LogOut,
   MapPin,
+  Settings,
   SquarePen,
   X,
   Trash2,
@@ -140,6 +141,7 @@ export function CalendarWorkspace({
   const [selectedDayKey, setSelectedDayKey] = useState(initialDay);
   const [modal, setModal] = useState<ModalMode>(initialModal);
   const [editingEventId, setEditingEventId] = useState(initialEventId ?? null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const monthDate = parseMonth(initialMonth);
   const monthKey = formatMonthInput(monthDate);
   const monthDays = buildMonthGrid(monthDate);
@@ -203,54 +205,25 @@ export function CalendarWorkspace({
           <p className="eyebrow">Shared calendar</p>
           <h1>{family.name}</h1>
         </div>
-        <form action={logoutAction}>
-          <button className="icon-button" type="submit" aria-label="ログアウト" title="ログアウト">
-            <LogOut aria-hidden="true" size={19} />
+        <div className="app-header-actions">
+          <button
+            className="icon-button"
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+            aria-label="設定を開く"
+            title="設定"
+          >
+            <Settings aria-hidden="true" size={19} />
           </button>
-        </form>
+          <form action={logoutAction}>
+            <button className="icon-button" type="submit" aria-label="ログアウト" title="ログアウト">
+              <LogOut aria-hidden="true" size={19} />
+            </button>
+          </form>
+        </div>
       </header>
 
       <section className="workspace">
-        <aside className="sidebar">
-          <section className="side-section">
-            <div className="section-title">
-              <Users aria-hidden="true" size={18} />
-              <h2>家族</h2>
-            </div>
-            <div className="member-list">
-              {family.members.map((member) => (
-                <div className="member-row" key={member.id}>
-                  <span className="member-dot" style={{ backgroundColor: member.color }} />
-                  <span>{member.user.displayName}</span>
-                  {member.role === "admin" ? <small>管理者</small> : null}
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="side-section">
-            <h2>招待コード</h2>
-            <div className="invite-code">{family.inviteCode}</div>
-          </section>
-
-          {memberships.length > 1 ? (
-            <section className="side-section">
-              <h2>カレンダー切替</h2>
-              <div className="family-switcher">
-                {memberships.map((membership) => (
-                  <Link
-                    aria-current={membership.familySpaceId === family.id ? "page" : undefined}
-                    href={`/calendar?family=${membership.familySpaceId}`}
-                    key={membership.id}
-                  >
-                    {membership.familySpace.name}
-                  </Link>
-                ))}
-              </div>
-            </section>
-          ) : null}
-        </aside>
-
         <section className="calendar-panel">
           <div className="calendar-toolbar">
             <div>
@@ -323,6 +296,74 @@ export function CalendarWorkspace({
             })}
           </div>
         </section>
+
+        {settingsOpen ? (
+          <section className="selected-day-modal" aria-labelledby="settings-title">
+            <button
+              className="selected-day-backdrop"
+              type="button"
+              onClick={() => setSettingsOpen(false)}
+              aria-label="設定を閉じる"
+            />
+            <div className="selected-day-dialog settings-dialog" role="dialog" aria-modal="true">
+              <div className="selected-day-header">
+                <div>
+                  <p className="eyebrow">Settings</p>
+                  <h2 id="settings-title">カレンダー設定</h2>
+                </div>
+                <button
+                  className="icon-button"
+                  type="button"
+                  onClick={() => setSettingsOpen(false)}
+                  aria-label="設定を閉じる"
+                  title="閉じる"
+                >
+                  <X aria-hidden="true" size={19} />
+                </button>
+              </div>
+
+              <div className="settings-content">
+                <section className="settings-section">
+                  <div className="section-title">
+                    <Users aria-hidden="true" size={18} />
+                    <h3>家族</h3>
+                  </div>
+                  <div className="member-list">
+                    {family.members.map((member) => (
+                      <div className="member-row" key={member.id}>
+                        <span className="member-dot" style={{ backgroundColor: member.color }} />
+                        <span>{member.user.displayName}</span>
+                        {member.role === "admin" ? <small>管理者</small> : null}
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="settings-section">
+                  <h3>招待コード</h3>
+                  <div className="invite-code">{family.inviteCode}</div>
+                </section>
+
+                {memberships.length > 1 ? (
+                  <section className="settings-section">
+                    <h3>カレンダー切替</h3>
+                    <div className="family-switcher">
+                      {memberships.map((membership) => (
+                        <Link
+                          aria-current={membership.familySpaceId === family.id ? "page" : undefined}
+                          href={`/calendar?family=${membership.familySpaceId}`}
+                          key={membership.id}
+                        >
+                          {membership.familySpace.name}
+                        </Link>
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         {showSelectedDayModal ? (
           <section className="selected-day-modal" aria-labelledby="selected-day-title">
