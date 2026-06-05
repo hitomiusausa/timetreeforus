@@ -650,10 +650,27 @@ textarea:focus {
 }
 
 @media (max-width: 780px) {
+  .app-shell {
+    padding: 0.65rem;
+  }
+
   .setup-grid,
   .workspace,
   .detail-panel {
     grid-template-columns: 1fr;
+  }
+
+  .app-header {
+    margin-bottom: 0.65rem;
+  }
+
+  .app-header h1 {
+    font-size: 1.65rem;
+  }
+
+  .app-header .eyebrow,
+  .calendar-toolbar .eyebrow {
+    font-size: 0.68rem;
   }
 
   .app-header,
@@ -663,18 +680,28 @@ textarea:focus {
 
   .calendar-toolbar {
     flex-direction: column;
+    gap: 0.55rem;
+    margin-bottom: 0.65rem;
+  }
+
+  .calendar-toolbar h2 {
+    font-size: 1.45rem;
   }
 
   .toolbar-actions {
     width: 100%;
+    gap: 0.4rem;
   }
 
   .today-button {
     flex: 1;
+    min-height: 38px;
+    padding: 0.45rem 0.7rem;
   }
 
   .calendar-panel {
     order: 1;
+    padding: 0.7rem;
   }
 
   .detail-panel {
@@ -693,31 +720,47 @@ textarea:focus {
     max-height: 86vh;
   }
 
+  .weekday-grid {
+    font-size: 0.7rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .icon-button {
+    width: 38px;
+    height: 38px;
+  }
+
   .day-cell {
-    min-height: 92px;
-    padding: 0.32rem;
+    aspect-ratio: 1 / 1;
+    gap: 0.12rem;
+    min-height: 0;
+    padding: 0.24rem;
   }
 
   .event-pill {
     border-radius: 6px;
-    font-size: 0.62rem;
+    font-size: 0.54rem;
     line-height: 1.2;
     min-height: 0;
-    padding: 0.12rem 0.22rem;
+    padding: 0.08rem 0.18rem;
   }
 
   .more-pill {
     border-radius: 6px;
-    font-size: 0.58rem;
-    padding: 0.1rem 0.22rem;
+    font-size: 0.52rem;
+    padding: 0.08rem 0.18rem;
   }
 
   .day-number {
     align-self: start;
     justify-self: start;
-    min-width: 26px;
-    height: 26px;
-    font-size: 0.9rem;
+    min-width: 22px;
+    height: 22px;
+    font-size: 0.78rem;
+  }
+
+  .day-events {
+    gap: 0.14rem;
   }
 
   .two-cols {
