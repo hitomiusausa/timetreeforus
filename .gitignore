@@ -27,6 +27,8 @@
 # misc
 .DS_Store
 *.pem
+/roll.png
+/roll.webp
 
 # debug
 npm-debug.log*

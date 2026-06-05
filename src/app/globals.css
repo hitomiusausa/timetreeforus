@@ -35,7 +35,8 @@ body {
   min-height: 100%;
   margin: 0;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(243, 255, 252, 0.94)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(243, 255, 252, 0.9)),
+    url("/roll.webp") center bottom / cover no-repeat,
     var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
