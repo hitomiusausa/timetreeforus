@@ -17,6 +17,8 @@ export const metadata: Metadata = {
   description: "家族で予定を共有するためのWebカレンダー",
 };
 
+export const preferredRegion = "bom1";
+
 export default function RootLayout({
   children,
 }: Readonly<{
