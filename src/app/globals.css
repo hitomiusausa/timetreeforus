@@ -410,6 +410,10 @@ textarea:focus {
 }
 
 .day-cell {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  align-content: start;
+  gap: 0.35rem;
   min-height: 118px;
   border-right: 1px solid var(--line);
   border-top: 0;
@@ -452,7 +456,7 @@ textarea:focus {
 .day-events {
   display: grid;
   gap: 0.28rem;
-  margin-top: 0.35rem;
+  min-width: 0;
 }
 
 .event-pill,
@@ -690,18 +694,30 @@ textarea:focus {
   }
 
   .day-cell {
-    min-height: 82px;
-    padding: 0.35rem;
+    min-height: 92px;
+    padding: 0.32rem;
   }
 
   .event-pill {
-    font-size: 0;
-    min-height: 8px;
-    padding: 0;
+    border-radius: 6px;
+    font-size: 0.62rem;
+    line-height: 1.2;
+    min-height: 0;
+    padding: 0.12rem 0.22rem;
   }
 
   .more-pill {
-    display: none;
+    border-radius: 6px;
+    font-size: 0.58rem;
+    padding: 0.1rem 0.22rem;
+  }
+
+  .day-number {
+    align-self: start;
+    justify-self: start;
+    min-width: 26px;
+    height: 26px;
+    font-size: 0.9rem;
   }
 
   .two-cols {
