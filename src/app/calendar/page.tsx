@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { CalendarWorkspace } from "@/app/calendar/CalendarWorkspace";
 import {
@@ -9,7 +10,7 @@ import {
   parseMonth,
 } from "@/lib/calendar";
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/session";
+import { sessionCookieName } from "@/lib/session";
 
 type CalendarPageProps = {
   searchParams: Promise<{
@@ -29,129 +30,241 @@ function normalizeModal(value?: string) {
   return null;
 }
 
-export default async function CalendarPage({ searchParams }: CalendarPageProps) {
-  const user = await requireUser();
-  const params = await searchParams;
+type CalendarQueryRow = {
+  family: {
+    id: string;
+    name: string;
+    inviteCode: string;
+    members: Array<{
+      id: string;
+      userId: string;
+      role: string;
+      color: string;
+      user: {
+        id: string;
+        displayName: string;
+      };
+    }>;
+    categories: Array<{
+      id: string;
+      name: string;
+      color: string;
+    }>;
+    events: Array<{
+      id: string;
+      categoryId: string | null;
+      title: string;
+      startsAt: string;
+      endsAt: string;
+      isAllDay: boolean;
+      location: string | null;
+      note: string | null;
+      assignedTo: string | null;
+      category: {
+        id: string;
+        name: string;
+        color: string;
+      } | null;
+      assignee: {
+        id: string;
+        displayName: string;
+      } | null;
+      creator: {
+        id: string;
+        displayName: string;
+      };
+    }>;
+  } | null;
+  memberships: Array<{
+    id: string;
+    familySpaceId: string;
+    familySpace: {
+      id: string;
+      name: string;
+    };
+  }>;
+};
 
-  if (user.memberships.length === 0) {
-    redirect("/setup");
+export default async function CalendarPage({ searchParams }: CalendarPageProps) {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(sessionCookieName)?.value;
+
+  if (!token) {
+    redirect("/login");
   }
 
-  const selectedMembership =
-    user.memberships.find((membership) => membership.familySpaceId === params.family) ??
-    user.memberships[0];
-  const familySpaceId = selectedMembership.familySpaceId;
+  const params = await searchParams;
   const monthDate = parseMonth(params.month);
   const selectedDate = parseDate(params.day);
   const monthDays = buildMonthGrid(monthDate);
   const rangeStart = monthDays[0];
   const rangeEnd = endOfMonth(monthDays[monthDays.length - 1]);
+  const requestedFamilyId = params.family ?? "";
 
-  const family = await prisma.familySpace.findFirst({
-    where: {
-      id: familySpaceId,
-      members: {
-        some: {
-          userId: user.id,
-        },
-      },
-    },
-    include: {
-      members: {
-        include: {
-          user: true,
-        },
-        orderBy: {
-          createdAt: "asc",
-        },
-      },
-      categories: {
-        orderBy: {
-          sortOrder: "asc",
-        },
-      },
-      events: {
-        where: {
-          deletedAt: null,
-          startsAt: {
-            gte: rangeStart,
-            lte: rangeEnd,
-          },
-        },
-        include: {
-          category: true,
-          assignee: true,
-          creator: true,
-        },
-        orderBy: {
-          startsAt: "asc",
-        },
-      },
-    },
-  });
+  const [calendarData] = await prisma.$queryRaw<CalendarQueryRow[]>`
+    WITH current_session AS (
+      SELECT s.user_id
+      FROM "sessions" s
+      WHERE s.token = ${token}
+        AND s.expires_at >= NOW()
+      LIMIT 1
+    ),
+    user_memberships AS (
+      SELECT
+        fm.id,
+        fm.family_space_id,
+        fm.created_at,
+        fs.name AS family_space_name
+      FROM "family_members" fm
+      JOIN "family_spaces" fs ON fs.id = fm.family_space_id
+      WHERE fm.user_id = (SELECT user_id FROM current_session)
+      ORDER BY fm.created_at ASC
+    ),
+    selected_family AS (
+      SELECT COALESCE(
+        (
+          SELECT family_space_id
+          FROM user_memberships
+          WHERE family_space_id = ${requestedFamilyId}
+          LIMIT 1
+        ),
+        (
+          SELECT family_space_id
+          FROM user_memberships
+          ORDER BY created_at ASC
+          LIMIT 1
+        )
+      ) AS family_space_id
+    )
+    SELECT
+      COALESCE(
+        (
+          SELECT json_agg(
+            json_build_object(
+              'id', id,
+              'familySpaceId', family_space_id,
+              'familySpace', json_build_object(
+                'id', family_space_id,
+                'name', family_space_name
+              )
+            )
+            ORDER BY created_at ASC
+          )
+          FROM user_memberships
+        ),
+        '[]'::json
+      ) AS "memberships",
+      (
+        SELECT json_build_object(
+          'id', fs.id,
+          'name', fs.name,
+          'inviteCode', fs.invite_code,
+          'members', COALESCE(
+            (
+              SELECT json_agg(
+                json_build_object(
+                  'id', fm.id,
+                  'userId', fm.user_id,
+                  'role', fm.role,
+                  'color', fm.color,
+                  'user', json_build_object(
+                    'id', u.id,
+                    'displayName', u.display_name
+                  )
+                )
+                ORDER BY fm.created_at ASC
+              )
+              FROM "family_members" fm
+              JOIN "users" u ON u.id = fm.user_id
+              WHERE fm.family_space_id = fs.id
+            ),
+            '[]'::json
+          ),
+          'categories', COALESCE(
+            (
+              SELECT json_agg(
+                json_build_object(
+                  'id', c.id,
+                  'name', c.name,
+                  'color', c.color
+                )
+                ORDER BY c.sort_order ASC
+              )
+              FROM "event_categories" c
+              WHERE c.family_space_id = fs.id
+            ),
+            '[]'::json
+          ),
+          'events', COALESCE(
+            (
+              SELECT json_agg(
+                json_build_object(
+                  'id', e.id,
+                  'categoryId', e.category_id,
+                  'title', e.title,
+                  'startsAt', e.starts_at,
+                  'endsAt', e.ends_at,
+                  'isAllDay', e.is_all_day,
+                  'location', e.location,
+                  'note', e.note,
+                  'assignedTo', e.assigned_to,
+                  'category', CASE
+                    WHEN c.id IS NULL THEN NULL
+                    ELSE json_build_object(
+                      'id', c.id,
+                      'name', c.name,
+                      'color', c.color
+                    )
+                  END,
+                  'assignee', CASE
+                    WHEN assignee.id IS NULL THEN NULL
+                    ELSE json_build_object(
+                      'id', assignee.id,
+                      'displayName', assignee.display_name
+                    )
+                  END,
+                  'creator', json_build_object(
+                    'id', creator.id,
+                    'displayName', creator.display_name
+                  )
+                )
+                ORDER BY e.starts_at ASC
+              )
+              FROM "events" e
+              LEFT JOIN "event_categories" c ON c.id = e.category_id
+              LEFT JOIN "users" assignee ON assignee.id = e.assigned_to
+              JOIN "users" creator ON creator.id = e.created_by
+              WHERE e.family_space_id = fs.id
+                AND e.deleted_at IS NULL
+                AND e.starts_at >= ${rangeStart}
+                AND e.starts_at <= ${rangeEnd}
+            ),
+            '[]'::json
+          )
+        )
+        FROM "family_spaces" fs
+        WHERE fs.id = (SELECT family_space_id FROM selected_family)
+      ) AS "family"
+  `;
 
-  if (!family) {
+  if (!calendarData) {
+    redirect("/login");
+  }
+
+  if (calendarData.memberships.length === 0) {
     redirect("/setup");
   }
 
+  if (!calendarData.family) {
+    redirect("/setup");
+  }
+
+  const family = calendarData.family;
+
   return (
     <CalendarWorkspace
-      family={{
-        id: family.id,
-        name: family.name,
-        inviteCode: family.inviteCode,
-        members: family.members.map((member) => ({
-          id: member.id,
-          userId: member.userId,
-          role: member.role,
-          color: member.color,
-          user: {
-            id: member.user.id,
-            displayName: member.user.displayName,
-          },
-        })),
-        categories: family.categories.map((category) => ({
-          id: category.id,
-          name: category.name,
-          color: category.color,
-        })),
-        events: family.events.map((event) => ({
-          id: event.id,
-          categoryId: event.categoryId,
-          title: event.title,
-          startsAt: event.startsAt.toISOString(),
-          endsAt: event.endsAt.toISOString(),
-          isAllDay: event.isAllDay,
-          location: event.location,
-          note: event.note,
-          assignedTo: event.assignedTo,
-          category: event.category
-            ? {
-                id: event.category.id,
-                name: event.category.name,
-                color: event.category.color,
-              }
-            : null,
-          assignee: event.assignee
-            ? {
-                id: event.assignee.id,
-                displayName: event.assignee.displayName,
-              }
-            : null,
-          creator: {
-            id: event.creator.id,
-            displayName: event.creator.displayName,
-          },
-        })),
-      }}
-      memberships={user.memberships.map((membership) => ({
-        id: membership.id,
-        familySpaceId: membership.familySpaceId,
-        familySpace: {
-          id: membership.familySpace.id,
-          name: membership.familySpace.name,
-        },
-      }))}
+      family={family}
+      memberships={calendarData.memberships}
       initialMonth={formatMonthInput(monthDate)}
       initialDay={formatDateInput(selectedDate)}
       initialModal={normalizeModal(params.modal)}

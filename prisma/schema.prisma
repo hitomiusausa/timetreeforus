@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -36,6 +36,7 @@ model Session {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@map("sessions")
 }
 
@@ -68,6 +69,7 @@ model FamilyMember {
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([familySpaceId, userId])
+  @@index([userId, createdAt])
   @@map("family_members")
 }
 
@@ -81,6 +83,7 @@ model EventCategory {
   familySpace FamilySpace @relation(fields: [familySpaceId], references: [id], onDelete: Cascade)
   events      Event[]
 
+  @@index([familySpaceId, sortOrder])
   @@map("event_categories")
 }
 
@@ -108,6 +111,7 @@ model Event {
   notifications Notification[]
 
   @@index([familySpaceId, startsAt])
+  @@index([familySpaceId, deletedAt, startsAt])
   @@map("events")
 }
 
