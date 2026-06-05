@@ -35,9 +35,10 @@ body {
   min-height: 100%;
   margin: 0;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(243, 255, 252, 0.9)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(243, 255, 252, 0.82)),
     url("/roll.webp") center bottom / cover no-repeat,
     var(--background);
+  background-attachment: fixed, fixed, scroll;
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
@@ -279,7 +280,8 @@ textarea:focus {
 .calendar-panel {
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.94);
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(4px);
   padding: 1rem;
 }
 
@@ -413,7 +415,7 @@ textarea:focus {
   border-top: 0;
   border-left: 0;
   border-bottom: 1px solid var(--line);
-  background: #fff;
+  background: rgba(255, 255, 255, 0.72);
   color: inherit;
   cursor: pointer;
   font: inherit;
@@ -430,7 +432,7 @@ textarea:focus {
 
 .muted-day {
   color: #9aa39d;
-  background: #fafbf9;
+  background: rgba(250, 251, 249, 0.58);
 }
 
 .day-number {
