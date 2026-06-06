@@ -15,6 +15,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Time tree for Us",
   description: "家族で予定を共有するためのWebカレンダー",
+  icons: {
+    icon: "/icon.png",
+    apple: "/apple-icon.png",
+  },
 };
 
 export const preferredRegion = "hnd1";

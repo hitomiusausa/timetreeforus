@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
@@ -219,9 +220,12 @@ export function CalendarWorkspace({
   return (
     <main className="app-shell">
       <header className="app-header">
-        <div>
-          <p className="eyebrow">Shared calendar</p>
-          <h1>{family.name}</h1>
+        <div className="app-title-lockup">
+          <Image className="app-logo" src="/logo.webp" alt="" width={54} height={54} priority />
+          <div>
+            <p className="eyebrow">Shared calendar</p>
+            <h1>{family.name}</h1>
+          </div>
         </div>
         <div className="app-header-actions">
           <button

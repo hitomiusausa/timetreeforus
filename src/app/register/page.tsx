@@ -1,6 +1,6 @@
 import Link from "next/link";
+import Image from "next/image";
 import { redirect } from "next/navigation";
-import { UserPlus } from "lucide-react";
 import { registerAction } from "@/app/actions/auth";
 import { getCurrentUser } from "@/lib/session";
 
@@ -29,7 +29,7 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
       <section className="auth-panel">
         <div className="brand-lockup">
           <div className="brand-mark">
-            <UserPlus aria-hidden="true" size={28} />
+            <Image className="brand-logo" src="/logo.webp" alt="" width={52} height={52} priority />
           </div>
           <div>
             <p className="eyebrow">Create account</p>
@@ -86,4 +86,3 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
     </main>
   );
 }
-
