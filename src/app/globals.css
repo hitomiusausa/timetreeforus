@@ -454,24 +454,26 @@ textarea:focus {
 
 .day-number {
   display: inline-grid;
+  justify-self: center;
   place-items: center;
-  min-width: 28px;
+  width: 28px;
   height: 28px;
-  border-radius: 8px;
+  border-radius: 999px;
   font-weight: 800;
 }
 
 .selected-day .day-number {
   background: var(--primary);
   color: var(--foreground);
-  min-width: 24px;
+  width: 24px;
   height: 24px;
-  border-radius: 7px;
+  border-radius: 999px;
 }
 
 .day-events {
   display: grid;
   gap: 0.28rem;
+  justify-items: start;
   min-width: 0;
 }
 
@@ -480,12 +482,13 @@ textarea:focus {
   justify-self: start;
   max-width: 100%;
   overflow: hidden;
-  border: 1px solid;
-  border-radius: 8px;
+  border: 0;
+  border-radius: 5px;
   color: var(--foreground);
   font-size: 0.72rem;
   font-weight: 800;
-  padding: 0.18rem 0.35rem;
+  line-height: 1.12;
+  padding: 0.24rem 0.38rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -797,16 +800,16 @@ textarea:focus {
 
   .day-number {
     align-self: start;
-    justify-self: start;
-    min-width: 22px;
+    justify-self: center;
+    width: 22px;
     height: 22px;
     font-size: 0.78rem;
   }
 
   .selected-day .day-number {
-    min-width: 20px;
+    width: 20px;
     height: 20px;
-    border-radius: 6px;
+    border-radius: 999px;
   }
 
   .day-events {

@@ -116,6 +116,21 @@ function asDate(value: string) {
   return new Date(value);
 }
 
+function getLabelTextColor(backgroundColor?: string | null) {
+  if (!backgroundColor?.startsWith("#")) {
+    return "#1f2d2b";
+  }
+
+  const hex = backgroundColor.slice(1);
+  const normalizedHex = hex.length === 3 ? hex.split("").map((value) => value + value).join("") : hex;
+  const red = Number.parseInt(normalizedHex.slice(0, 2), 16);
+  const green = Number.parseInt(normalizedHex.slice(2, 4), 16);
+  const blue = Number.parseInt(normalizedHex.slice(4, 6), 16);
+  const luminance = (0.299 * red + 0.587 * green + 0.114 * blue) / 255;
+
+  return luminance > 0.58 ? "#1f2d2b" : "#ffffff";
+}
+
 function updateCalendarUrl(familyId: string, month: string, day: string, modal: ModalMode, eventId?: string) {
   const params = new URLSearchParams({ family: familyId, month, day });
 
@@ -282,8 +297,8 @@ export function CalendarWorkspace({
                         className="event-pill"
                         key={event.id}
                         style={{
-                          borderColor: event.category?.color ?? "#6b7280",
-                          backgroundColor: `${event.category?.color ?? "#6b7280"}18`,
+                          backgroundColor: event.category?.color ?? "#e4e6e5",
+                          color: getLabelTextColor(event.category?.color),
                         }}
                       >
                         {event.title}
