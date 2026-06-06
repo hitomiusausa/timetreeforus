@@ -164,7 +164,9 @@ export function CalendarWorkspace({
   const selectedDate = parseDate(selectedDayKey);
   const previousMonth = formatMonthInput(addMonths(monthDate, -1));
   const nextMonth = formatMonthInput(addMonths(monthDate, 1));
-  const thisMonth = formatMonthInput(new Date());
+  const today = new Date();
+  const todayKey = formatDateInput(today);
+  const thisMonth = formatMonthInput(today);
   const monthLabel = new Intl.DateTimeFormat("ja-JP", {
     year: "numeric",
     month: "long",
@@ -254,7 +256,7 @@ export function CalendarWorkspace({
               >
                 <ChevronLeft aria-hidden="true" size={19} />
               </Link>
-              <Link className="today-button" href={`/calendar?family=${family.id}&month=${thisMonth}`}>
+              <Link className="today-button" href={`/calendar?family=${family.id}&month=${thisMonth}&day=${todayKey}`}>
                 今日
               </Link>
               <Link
