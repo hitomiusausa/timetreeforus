@@ -435,9 +435,16 @@ textarea:focus {
   width: 100%;
 }
 
-.day-cell:hover,
-.selected-day {
+.day-cell:hover {
   background: rgba(107, 230, 215, 0.16);
+}
+
+.selected-day {
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.muted-day.selected-day {
+  background: rgba(250, 251, 249, 0.58);
 }
 
 .muted-day {
@@ -457,6 +464,9 @@ textarea:focus {
 .selected-day .day-number {
   background: var(--primary);
   color: var(--foreground);
+  min-width: 24px;
+  height: 24px;
+  border-radius: 7px;
 }
 
 .day-events {
@@ -467,6 +477,8 @@ textarea:focus {
 
 .event-pill,
 .more-pill {
+  justify-self: start;
+  max-width: 100%;
   overflow: hidden;
   border: 1px solid;
   border-radius: 8px;
@@ -482,6 +494,8 @@ textarea:focus {
   border-color: var(--line);
   background: var(--soft);
   color: var(--muted);
+  min-width: 1.6em;
+  text-align: center;
 }
 
 .empty-text {
@@ -787,6 +801,12 @@ textarea:focus {
     min-width: 22px;
     height: 22px;
     font-size: 0.78rem;
+  }
+
+  .selected-day .day-number {
+    min-width: 20px;
+    height: 20px;
+    border-radius: 6px;
   }
 
   .day-events {

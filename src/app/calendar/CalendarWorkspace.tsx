@@ -277,7 +277,7 @@ export function CalendarWorkspace({
                 >
                   <span className="day-number">{day.getDate()}</span>
                   <div className="day-events">
-                    {dayEvents.slice(0, 3).map((event) => (
+                    {dayEvents.slice(0, 2).map((event) => (
                       <span
                         className="event-pill"
                         key={event.id}
@@ -289,7 +289,7 @@ export function CalendarWorkspace({
                         {event.title}
                       </span>
                     ))}
-                    {dayEvents.length > 3 ? <span className="more-pill">+{dayEvents.length - 3}</span> : null}
+                    {dayEvents.length > 2 ? <span className="more-pill">+{dayEvents.length - 2}</span> : null}
                   </div>
                 </button>
               );
