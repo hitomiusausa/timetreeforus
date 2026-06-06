@@ -14,6 +14,7 @@
   --mint: #6be69a;
   --blue: #6bb7e6;
   --lavender: #96a0ed;
+  --today: #e14169;
 }
 
 @theme inline {
@@ -499,8 +500,8 @@ textarea:focus {
 }
 
 .selected-day .day-number {
-  background: var(--primary);
-  color: var(--foreground);
+  background: var(--today);
+  color: #fff;
   width: 24px;
   height: 24px;
   border-radius: 999px;
@@ -517,6 +518,10 @@ textarea:focus {
 
 .event-pill,
 .more-pill {
+  display: inline-flex;
+  min-height: 1.45em;
+  align-items: center;
+  justify-content: center;
   align-self: start;
   justify-self: start;
   max-width: 100%;
@@ -527,7 +532,7 @@ textarea:focus {
   font-size: 0.72rem;
   font-weight: 800;
   line-height: 1;
-  padding: 0.14rem 0.55rem;
+  padding: 0.02rem 0.55rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -907,14 +912,14 @@ textarea:focus {
     border-radius: 6px;
     font-size: 0.58rem;
     line-height: 1;
-    min-height: 0;
-    padding: 0.12rem 0.42rem;
+    min-height: 1.45em;
+    padding: 0.02rem 0.42rem;
   }
 
   .more-pill {
     border-radius: 6px;
     font-size: 0.56rem;
-    padding: 0.11rem 0.3rem;
+    padding: 0.02rem 0.3rem;
     right: 0.22rem;
     bottom: 0.2rem;
   }
