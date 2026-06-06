@@ -761,24 +761,24 @@ textarea:focus {
   }
 
   .day-cell {
-    aspect-ratio: 1 / 1;
-    gap: 0.12rem;
+    aspect-ratio: 1 / 1.16;
+    gap: 0.16rem;
     min-height: 0;
-    padding: 0.24rem;
+    padding: 0.3rem;
   }
 
   .event-pill {
     border-radius: 6px;
-    font-size: 0.54rem;
+    font-size: 0.58rem;
     line-height: 1.2;
     min-height: 0;
-    padding: 0.08rem 0.18rem;
+    padding: 0.1rem 0.2rem;
   }
 
   .more-pill {
     border-radius: 6px;
-    font-size: 0.52rem;
-    padding: 0.08rem 0.18rem;
+    font-size: 0.56rem;
+    padding: 0.1rem 0.2rem;
   }
 
   .day-number {
