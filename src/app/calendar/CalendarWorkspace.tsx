@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
   ChevronLeft,
@@ -155,6 +156,7 @@ export function CalendarWorkspace({
   initialModal,
   initialEventId,
 }: CalendarWorkspaceProps) {
+  const router = useRouter();
   const [selectedDayKey, setSelectedDayKey] = useState(initialDay);
   const [modal, setModal] = useState<ModalMode>(initialModal);
   const [editingEventId, setEditingEventId] = useState(initialEventId ?? null);
@@ -217,6 +219,19 @@ export function CalendarWorkspace({
     updateCalendarUrl(family.id, monthKey, selectedDayKey, "edit", eventId);
   }
 
+  function selectToday() {
+    setSelectedDayKey(todayKey);
+    setEditingEventId(null);
+    setModal(null);
+
+    if (monthKey === thisMonth) {
+      updateCalendarUrl(family.id, thisMonth, todayKey, null);
+      return;
+    }
+
+    router.push(`/calendar?family=${family.id}&month=${thisMonth}&day=${todayKey}`);
+  }
+
   return (
     <main className="app-shell">
       <header className="app-header">
@@ -261,9 +276,9 @@ export function CalendarWorkspace({
               >
                 <ChevronLeft aria-hidden="true" size={19} />
               </Link>
-              <Link className="today-button" href={`/calendar?family=${family.id}&month=${thisMonth}&day=${todayKey}`}>
+              <button className="today-button" type="button" onClick={selectToday}>
                 今日
-              </Link>
+              </button>
               <Link
                 className="icon-button"
                 href={`/calendar?family=${family.id}&month=${nextMonth}&day=${selectedDayKey}`}
