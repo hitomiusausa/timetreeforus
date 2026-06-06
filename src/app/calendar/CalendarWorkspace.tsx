@@ -3,12 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
   Clock,
   PencilLine,
+  RefreshCw,
   LogOut,
   MapPin,
   Settings,
@@ -192,6 +193,45 @@ export function CalendarWorkspace({
   const showSelectedDayModal = modal === "day";
   const showEventFormModal = modal === "event";
   const showEditEventModal = modal === "edit" && editingEvent;
+  const canAutoRefresh = !modal && !settingsOpen;
+
+  const refreshCalendar = useCallback(() => {
+    router.refresh();
+  }, [router]);
+
+  useEffect(() => {
+    if (!canAutoRefresh) {
+      return;
+    }
+
+    const intervalId = window.setInterval(refreshCalendar, 15000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [canAutoRefresh, refreshCalendar]);
+
+  useEffect(() => {
+    if (!canAutoRefresh) {
+      return;
+    }
+
+    function refreshWhenActive() {
+      if (document.visibilityState === "visible") {
+        refreshCalendar();
+      }
+    }
+
+    window.addEventListener("focus", refreshWhenActive);
+    window.addEventListener("pageshow", refreshWhenActive);
+    document.addEventListener("visibilitychange", refreshWhenActive);
+
+    return () => {
+      window.removeEventListener("focus", refreshWhenActive);
+      window.removeEventListener("pageshow", refreshWhenActive);
+      document.removeEventListener("visibilitychange", refreshWhenActive);
+    };
+  }, [canAutoRefresh, refreshCalendar]);
 
   function openDay(key: string) {
     const nextModal = (eventsByDay.get(key)?.length ?? 0) > 0 ? "day" : "event";
@@ -278,6 +318,15 @@ export function CalendarWorkspace({
               </Link>
               <button className="today-button" type="button" onClick={selectToday}>
                 今日
+              </button>
+              <button
+                className="icon-button"
+                type="button"
+                onClick={refreshCalendar}
+                aria-label="カレンダーを更新"
+                title="更新"
+              >
+                <RefreshCw aria-hidden="true" size={18} />
               </button>
               <Link
                 className="icon-button"
