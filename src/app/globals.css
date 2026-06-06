@@ -416,6 +416,7 @@ textarea:focus {
 }
 
 .day-cell {
+  position: relative;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   align-content: start;
@@ -497,10 +498,12 @@ textarea:focus {
 }
 
 .more-pill {
-  border-color: var(--line);
-  background: var(--soft);
-  color: var(--muted);
-  min-width: 1.6em;
+  position: absolute;
+  right: 0.34rem;
+  bottom: 0.28rem;
+  background: rgba(31, 45, 43, 0.72);
+  color: #fff;
+  min-width: 1.55em;
   text-align: center;
 }
 
@@ -781,7 +784,7 @@ textarea:focus {
   }
 
   .day-cell {
-    aspect-ratio: 1 / 1.16;
+    aspect-ratio: 1 / 1.32;
     gap: 0.16rem;
     min-height: 0;
     padding: 0.3rem;
@@ -798,7 +801,9 @@ textarea:focus {
   .more-pill {
     border-radius: 6px;
     font-size: 0.56rem;
-    padding: 0.12rem 0.42rem;
+    padding: 0.11rem 0.3rem;
+    right: 0.22rem;
+    bottom: 0.2rem;
   }
 
   .day-number {

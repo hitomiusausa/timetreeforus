@@ -304,8 +304,8 @@ export function CalendarWorkspace({
                         {event.title}
                       </span>
                     ))}
-                    {dayEvents.length > 2 ? <span className="more-pill">+{dayEvents.length - 2}</span> : null}
                   </div>
+                  {dayEvents.length > 2 ? <span className="more-pill">+{dayEvents.length - 2}</span> : null}
                 </button>
               );
             })}
