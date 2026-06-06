@@ -473,12 +473,15 @@ textarea:focus {
 .day-events {
   display: grid;
   gap: 0.28rem;
+  align-content: start;
+  grid-auto-rows: max-content;
   justify-items: start;
   min-width: 0;
 }
 
 .event-pill,
 .more-pill {
+  align-self: start;
   justify-self: start;
   max-width: 100%;
   overflow: hidden;
@@ -487,8 +490,8 @@ textarea:focus {
   color: var(--foreground);
   font-size: 0.72rem;
   font-weight: 800;
-  line-height: 1.12;
-  padding: 0.24rem 0.38rem;
+  line-height: 1;
+  padding: 0.14rem 0.55rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -787,15 +790,15 @@ textarea:focus {
   .event-pill {
     border-radius: 6px;
     font-size: 0.58rem;
-    line-height: 1.2;
+    line-height: 1;
     min-height: 0;
-    padding: 0.1rem 0.2rem;
+    padding: 0.12rem 0.42rem;
   }
 
   .more-pill {
     border-radius: 6px;
     font-size: 0.56rem;
-    padding: 0.1rem 0.2rem;
+    padding: 0.12rem 0.42rem;
   }
 
   .day-number {
