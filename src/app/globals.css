@@ -150,7 +150,8 @@ textarea:focus {
 
 .primary-button,
 .secondary-button,
-.today-button {
+.today-button,
+.danger-button {
   display: inline-flex;
   min-height: 44px;
   align-items: center;
@@ -183,6 +184,16 @@ textarea:focus {
 .icon-button:hover,
 .mini-icon-button:hover {
   background: var(--soft);
+}
+
+.danger-button {
+  background: rgba(230, 107, 121, 0.12);
+  border-color: rgba(230, 107, 121, 0.34);
+  color: #913640;
+}
+
+.danger-button:hover {
+  background: rgba(230, 107, 121, 0.2);
 }
 
 .auth-link {
@@ -582,6 +593,79 @@ textarea:focus {
 .settings-section h3 {
   font-size: 1rem;
   margin: 0 0 0.7rem;
+}
+
+.calendar-add-form,
+.calendar-management-list,
+.calendar-management-item,
+.calendar-name-form,
+.calendar-delete-form {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.calendar-add-form {
+  margin-bottom: 0.9rem;
+}
+
+.calendar-management-list {
+  gap: 0.8rem;
+}
+
+.calendar-management-item {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 0.75rem;
+}
+
+.calendar-management-head,
+.inline-form-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.55rem;
+  align-items: end;
+}
+
+.calendar-management-head {
+  align-items: center;
+}
+
+.calendar-management-head p {
+  font-weight: 800;
+  margin: 0;
+}
+
+.calendar-management-head small {
+  color: var(--muted);
+}
+
+.calendar-open-link {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--primary-strong);
+  font-weight: 800;
+  padding: 0.45rem 0.65rem;
+}
+
+.calendar-open-link[aria-current="page"] {
+  background: rgba(107, 230, 215, 0.18);
+}
+
+.calendar-delete-details {
+  border-top: 1px solid rgba(188, 238, 232, 0.7);
+  padding-top: 0.55rem;
+}
+
+.calendar-delete-details summary {
+  color: #913640;
+  cursor: pointer;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.calendar-delete-form {
+  margin-top: 0.65rem;
 }
 
 .modal-add-button {

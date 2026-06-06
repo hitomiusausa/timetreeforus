@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
 import { createEventAction, deleteEventAction, updateEventAction } from "@/app/actions/events";
+import { createCalendarAction, deleteCalendarAction, updateCalendarNameAction } from "@/app/actions/family";
 import {
   addMonths,
   buildMonthGrid,
@@ -361,22 +362,76 @@ export function CalendarWorkspace({
                   <div className="invite-code">{family.inviteCode}</div>
                 </section>
 
-                {memberships.length > 1 ? (
-                  <section className="settings-section">
-                    <h3>カレンダー切替</h3>
-                    <div className="family-switcher">
-                      {memberships.map((membership) => (
-                        <Link
-                          aria-current={membership.familySpaceId === family.id ? "page" : undefined}
-                          href={`/calendar?family=${membership.familySpaceId}`}
-                          key={membership.id}
-                        >
-                          {membership.familySpace.name}
-                        </Link>
-                      ))}
+                <section className="settings-section">
+                  <h3>カレンダー</h3>
+                  <form action={createCalendarAction} className="calendar-add-form">
+                    <input type="hidden" name="currentFamilySpaceId" value={family.id} />
+                    <div>
+                      <label htmlFor="newCalendarName">カレンダー追加</label>
+                      <input id="newCalendarName" name="name" placeholder="例: 仕事用" required />
                     </div>
-                  </section>
-                ) : null}
+                    <button className="secondary-button" type="submit">
+                      追加
+                    </button>
+                  </form>
+
+                  <div className="calendar-management-list">
+                    {memberships.map((membership) => (
+                      <article className="calendar-management-item" key={membership.id}>
+                        <div className="calendar-management-head">
+                          <div>
+                            <p>{membership.familySpace.name}</p>
+                            {membership.familySpaceId === family.id ? <small>表示中</small> : null}
+                          </div>
+                          <Link
+                            aria-current={membership.familySpaceId === family.id ? "page" : undefined}
+                            className="calendar-open-link"
+                            href={`/calendar?family=${membership.familySpaceId}`}
+                          >
+                            開く
+                          </Link>
+                        </div>
+
+                        <form action={updateCalendarNameAction} className="calendar-name-form">
+                          <input type="hidden" name="familySpaceId" value={membership.familySpaceId} />
+                          <input type="hidden" name="currentFamilySpaceId" value={family.id} />
+                          <label htmlFor={`calendarName-${membership.id}`}>名前を変更</label>
+                          <div className="inline-form-row">
+                            <input
+                              id={`calendarName-${membership.id}`}
+                              name="name"
+                              defaultValue={membership.familySpace.name}
+                              required
+                            />
+                            <button className="secondary-button" type="submit">
+                              保存
+                            </button>
+                          </div>
+                        </form>
+
+                        <details className="calendar-delete-details">
+                          <summary>このカレンダーを削除</summary>
+                          <form action={deleteCalendarAction} className="calendar-delete-form">
+                            <input type="hidden" name="familySpaceId" value={membership.familySpaceId} />
+                            <input type="hidden" name="currentFamilySpaceId" value={family.id} />
+                            <label htmlFor={`deleteCalendar-${membership.id}`}>確認のため「削除」と入力</label>
+                            <div className="inline-form-row">
+                              <input
+                                id={`deleteCalendar-${membership.id}`}
+                                name="confirmDelete"
+                                placeholder="削除"
+                                required
+                              />
+                              <button className="danger-button" type="submit">
+                                削除
+                              </button>
+                            </div>
+                          </form>
+                        </details>
+                      </article>
+                    ))}
+                  </div>
+                </section>
               </div>
             </div>
           </section>
