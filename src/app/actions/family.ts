@@ -12,6 +12,8 @@ const defaultCategories = [
   { name: "仕事", color: "#6BB7E6", sortOrder: 2 },
   { name: "学校", color: "#96A0ED", sortOrder: 3 },
   { name: "病院", color: "#E66B79", sortOrder: 4 },
+  { name: "友達", color: "#52DE3F", sortOrder: 5 },
+  { name: "趣味仲間", color: "#96A0ED", sortOrder: 6 },
 ];
 
 async function uniqueInviteCode() {

@@ -785,6 +785,26 @@ textarea:focus {
   align-items: end;
 }
 
+.assignee-fieldset {
+  min-width: 0;
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.assignee-fieldset legend {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-bottom: 0.35rem;
+  padding: 0;
+}
+
+.assignee-options {
+  display: grid;
+  gap: 0.45rem;
+}
+
 .checkbox-row {
   display: flex;
   min-height: 44px;

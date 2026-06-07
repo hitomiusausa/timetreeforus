@@ -76,6 +76,10 @@ type CalendarEvent = {
     id: string;
     displayName: string;
   } | null;
+  assignees: {
+    id: string;
+    displayName: string;
+  }[];
   creator: {
     id: string;
     displayName: string;
@@ -135,6 +139,20 @@ function getLabelTextColor(backgroundColor?: string | null) {
   return luminance > 0.58 ? "#1f2d2b" : "#ffffff";
 }
 
+function getAssigneeLabel(event: CalendarEvent, memberCount: number) {
+  const assignees = event.assignees.length > 0 ? event.assignees : event.assignee ? [event.assignee] : [];
+
+  if (assignees.length === 0) {
+    return null;
+  }
+
+  if (memberCount > 0 && assignees.length >= memberCount) {
+    return "全員";
+  }
+
+  return assignees.map((assignee) => assignee.displayName).join("、");
+}
+
 function updateCalendarUrl(familyId: string, month: string, day: string, modal: ModalMode, eventId?: string) {
   const params = new URLSearchParams({ family: familyId, month, day });
 
@@ -190,6 +208,16 @@ export function CalendarWorkspace({
 
   const selectedEvents = eventsByDay.get(selectedDayKey) ?? [];
   const editingEvent = editingEventId ? family.events.find((event) => event.id === editingEventId) : null;
+  const editingAssignedUserIds = new Set(
+    editingEvent
+      ? editingEvent.assignees.length > 0
+        ? editingEvent.assignees.map((assignee) => assignee.id)
+        : editingEvent.assignedTo
+          ? [editingEvent.assignedTo]
+          : []
+      : [],
+  );
+  const editingAssignsEveryone = family.members.length > 0 && editingAssignedUserIds.size >= family.members.length;
   const showSelectedDayModal = modal === "day";
   const showEventFormModal = modal === "event";
   const showEditEventModal = modal === "edit" && editingEvent;
@@ -531,6 +559,7 @@ export function CalendarWorkspace({
                   selectedEvents.map((event) => {
                     const startsAt = asDate(event.startsAt);
                     const endsAt = asDate(event.endsAt);
+                    const assigneeLabel = getAssigneeLabel(event, family.members.length);
 
                     return (
                       <article className="event-card" key={event.id}>
@@ -570,7 +599,7 @@ export function CalendarWorkspace({
                           <PencilLine aria-hidden="true" size={14} />
                           入力: {event.creator.displayName}
                         </p>
-                        {event.assignee ? <p className="event-meta">担当: {event.assignee.displayName}</p> : null}
+                        {assigneeLabel ? <p className="event-meta">担当: {assigneeLabel}</p> : null}
                         {event.location ? (
                           <p className="event-meta">
                             <MapPin aria-hidden="true" size={14} />
@@ -670,17 +699,21 @@ export function CalendarWorkspace({
                 </div>
 
                 <div className="two-cols">
-                  <div>
-                    <label htmlFor="assignedTo">担当</label>
-                    <select id="assignedTo" name="assignedTo" defaultValue="">
-                      <option value="">未設定</option>
+                  <fieldset className="assignee-fieldset">
+                    <legend>担当</legend>
+                    <div className="assignee-options">
+                      <label className="checkbox-row">
+                        <input name="assignAll" type="checkbox" />
+                        全員
+                      </label>
                       {family.members.map((member) => (
-                        <option value={member.userId} key={member.id}>
+                        <label className="checkbox-row" key={member.id}>
+                          <input name="assignedUserIds" type="checkbox" value={member.userId} />
                           {member.user.displayName}
-                        </option>
+                        </label>
                       ))}
-                    </select>
-                  </div>
+                    </div>
+                  </fieldset>
                   <div>
                     <label htmlFor="categoryId">カテゴリ</label>
                     <select id="categoryId" name="categoryId" defaultValue={family.categories[0]?.id ?? ""}>
@@ -836,17 +869,26 @@ export function CalendarWorkspace({
                 </div>
 
                 <div className="two-cols">
-                  <div>
-                    <label htmlFor="editAssignedTo">担当</label>
-                    <select id="editAssignedTo" name="assignedTo" defaultValue={editingEvent.assignedTo ?? ""}>
-                      <option value="">未設定</option>
+                  <fieldset className="assignee-fieldset">
+                    <legend>担当</legend>
+                    <div className="assignee-options">
+                      <label className="checkbox-row">
+                        <input name="assignAll" type="checkbox" defaultChecked={editingAssignsEveryone} />
+                        全員
+                      </label>
                       {family.members.map((member) => (
-                        <option value={member.userId} key={member.id}>
+                        <label className="checkbox-row" key={member.id}>
+                          <input
+                            name="assignedUserIds"
+                            type="checkbox"
+                            value={member.userId}
+                            defaultChecked={editingAssignedUserIds.has(member.userId)}
+                          />
                           {member.user.displayName}
-                        </option>
+                        </label>
                       ))}
-                    </select>
-                  </div>
+                    </div>
+                  </fieldset>
                   <div>
                     <label htmlFor="editCategoryId">カテゴリ</label>
                     <select id="editCategoryId" name="categoryId" defaultValue={editingEvent.categoryId ?? ""}>

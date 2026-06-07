@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
@@ -16,13 +16,14 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  sessions       Session[]
-  createdFamilies FamilySpace[]   @relation("FamilyCreator")
-  memberships    FamilyMember[]
-  createdEvents  Event[]          @relation("EventCreator")
-  assignedEvents Event[]          @relation("EventAssignee")
-  comments       EventComment[]
-  notifications  Notification[]
+  sessions         Session[]
+  createdFamilies  FamilySpace[]     @relation("FamilyCreator")
+  memberships      FamilyMember[]
+  createdEvents    Event[]           @relation("EventCreator")
+  assignedEvents   Event[]           @relation("EventAssignee")
+  eventAssignments EventAssignment[]
+  comments         EventComment[]
+  notifications    Notification[]
 
   @@map("users")
 }
@@ -103,16 +104,31 @@ model Event {
   updatedAt     DateTime  @updatedAt @map("updated_at")
   deletedAt     DateTime? @map("deleted_at")
 
-  familySpace   FamilySpace     @relation(fields: [familySpaceId], references: [id], onDelete: Cascade)
-  category      EventCategory?  @relation(fields: [categoryId], references: [id])
-  creator       User            @relation("EventCreator", fields: [createdBy], references: [id])
-  assignee      User?           @relation("EventAssignee", fields: [assignedTo], references: [id])
+  familySpace   FamilySpace       @relation(fields: [familySpaceId], references: [id], onDelete: Cascade)
+  category      EventCategory?    @relation(fields: [categoryId], references: [id])
+  creator       User              @relation("EventCreator", fields: [createdBy], references: [id])
+  assignee      User?             @relation("EventAssignee", fields: [assignedTo], references: [id])
+  assignments   EventAssignment[]
   comments      EventComment[]
   notifications Notification[]
 
   @@index([familySpaceId, startsAt])
   @@index([familySpaceId, deletedAt, startsAt])
   @@map("events")
+}
+
+model EventAssignment {
+  id        String   @id @default(uuid())
+  eventId   String   @map("event_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([userId])
+  @@map("event_assignments")
 }
 
 model EventComment {

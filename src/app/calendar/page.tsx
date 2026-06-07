@@ -69,6 +69,10 @@ type CalendarQueryRow = {
         id: string;
         displayName: string;
       } | null;
+      assignees: Array<{
+        id: string;
+        displayName: string;
+      }>;
       creator: {
         id: string;
         displayName: string;
@@ -223,6 +227,24 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                       'displayName', assignee.display_name
                     )
                   END,
+                  'assignees', COALESCE(
+                    (
+                      SELECT json_agg(
+                        json_build_object(
+                          'id', assigned_user.id,
+                          'displayName', assigned_user.display_name
+                        )
+                        ORDER BY assigned_member.created_at ASC
+                      )
+                      FROM "event_assignments" ea
+                      JOIN "users" assigned_user ON assigned_user.id = ea.user_id
+                      LEFT JOIN "family_members" assigned_member
+                        ON assigned_member.family_space_id = e.family_space_id
+                       AND assigned_member.user_id = ea.user_id
+                      WHERE ea.event_id = e.id
+                    ),
+                    '[]'::json
+                  ),
                   'creator', json_build_object(
                     'id', creator.id,
                     'displayName', creator.display_name

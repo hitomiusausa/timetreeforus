@@ -53,6 +53,35 @@ function buildOccurrenceDates(startDate: string, endDate: string, repeatRule: st
   return dates;
 }
 
+function readAssignedUserIds(formData: FormData) {
+  return formData
+    .getAll("assignedUserIds")
+    .map((value) => String(value))
+    .filter(Boolean);
+}
+
+async function resolveAssignmentUserIds(familySpaceId: string, requestedUserIds: string[], assignAll: boolean) {
+  const members = await prisma.familyMember.findMany({
+    where: {
+      familySpaceId,
+    },
+    orderBy: {
+      createdAt: "asc",
+    },
+    select: {
+      userId: true,
+    },
+  });
+  const memberUserIds = members.map((member) => member.userId);
+
+  if (assignAll) {
+    return memberUserIds;
+  }
+
+  const allowedUserIds = new Set(memberUserIds);
+  return Array.from(new Set(requestedUserIds.filter((userId) => allowedUserIds.has(userId))));
+}
+
 export async function createEventAction(formData: FormData) {
   const user = await requireUser();
   const familySpaceId = String(formData.get("familySpaceId") ?? "");
@@ -67,7 +96,8 @@ export async function createEventAction(formData: FormData) {
   const endTime = String(formData.get("endTime") ?? "10:00");
   const isAllDay = formData.get("isAllDay") === "on";
   const categoryId = String(formData.get("categoryId") ?? "") || null;
-  const assignedTo = String(formData.get("assignedTo") ?? "") || null;
+  const assignAll = formData.get("assignAll") === "on";
+  const requestedAssignedUserIds = readAssignedUserIds(formData);
   const location = String(formData.get("location") ?? "").trim() || null;
   const note = String(formData.get("note") ?? "").trim() || null;
 
@@ -78,26 +108,35 @@ export async function createEventAction(formData: FormData) {
   await ensureFamilyMember(user.id, familySpaceId);
 
   const occurrenceDates = buildOccurrenceDates(date, endDate, repeatRule);
+  const assignmentUserIds = await resolveAssignmentUserIds(familySpaceId, requestedAssignedUserIds, assignAll);
 
-  await prisma.event.createMany({
-    data: occurrenceDates.map((occurrenceDate) => {
+  await prisma.$transaction(
+    occurrenceDates.map((occurrenceDate) => {
       const startsAt = isAllDay ? buildDateTime(occurrenceDate, "00:00") : buildDateTime(occurrenceDate, startTime);
       const endsAt = isAllDay ? buildDateTime(occurrenceDate, "23:59") : buildDateTime(occurrenceDate, endTime);
 
-      return {
-        familySpaceId,
-        title,
-        startsAt,
-        endsAt: endsAt < startsAt ? startsAt : endsAt,
-        isAllDay,
-        categoryId,
-        assignedTo,
-        location,
-        note,
-        createdBy: user.id,
-      };
+      return prisma.event.create({
+        data: {
+          familySpaceId,
+          title,
+          startsAt,
+          endsAt: endsAt < startsAt ? startsAt : endsAt,
+          isAllDay,
+          categoryId,
+          assignedTo: assignmentUserIds[0] ?? null,
+          location,
+          note,
+          createdBy: user.id,
+          assignments:
+            assignmentUserIds.length > 0
+              ? {
+                  create: assignmentUserIds.map((userId) => ({ userId })),
+                }
+              : undefined,
+        },
+      });
     }),
-  });
+  );
 
   revalidatePath("/calendar");
   redirect(`/calendar?family=${familySpaceId}&month=${date.slice(0, 7)}&day=${date}&modal=day`);
@@ -117,7 +156,8 @@ export async function updateEventAction(formData: FormData) {
   const endTime = String(formData.get("endTime") ?? "10:00");
   const isAllDay = formData.get("isAllDay") === "on";
   const categoryId = String(formData.get("categoryId") ?? "") || null;
-  const assignedTo = String(formData.get("assignedTo") ?? "") || null;
+  const assignAll = formData.get("assignAll") === "on";
+  const requestedAssignedUserIds = readAssignedUserIds(formData);
   const location = String(formData.get("location") ?? "").trim() || null;
   const note = String(formData.get("note") ?? "").trim() || null;
 
@@ -132,46 +172,69 @@ export async function updateEventAction(formData: FormData) {
   const startsAt = isAllDay ? buildDateTime(date, "00:00") : buildDateTime(date, startTime);
   const endsAt = isAllDay ? buildDateTime(date, "23:59") : buildDateTime(date, endTime);
   const occurrenceDates = buildOccurrenceDates(date, endDate, repeatRule);
+  const assignmentUserIds = await resolveAssignmentUserIds(familySpaceId, requestedAssignedUserIds, assignAll);
 
-  await prisma.event.updateMany({
-    where: {
-      id: eventId,
-      familySpaceId,
-      deletedAt: null,
-    },
-    data: {
-      title,
-      startsAt,
-      endsAt: endsAt < startsAt ? startsAt : endsAt,
-      isAllDay,
-      categoryId,
-      assignedTo,
-      location,
-      note,
-    },
-  });
+  await prisma.$transaction(async (tx) => {
+    await tx.event.updateMany({
+      where: {
+        id: eventId,
+        familySpaceId,
+        deletedAt: null,
+      },
+      data: {
+        title,
+        startsAt,
+        endsAt: endsAt < startsAt ? startsAt : endsAt,
+        isAllDay,
+        categoryId,
+        assignedTo: assignmentUserIds[0] ?? null,
+        location,
+        note,
+      },
+    });
 
-  if (occurrenceDates.length > 1) {
-    await prisma.event.createMany({
-      data: occurrenceDates.slice(1).map((occurrenceDate) => {
-        const occurrenceStartsAt = isAllDay ? buildDateTime(occurrenceDate, "00:00") : buildDateTime(occurrenceDate, startTime);
-        const occurrenceEndsAt = isAllDay ? buildDateTime(occurrenceDate, "23:59") : buildDateTime(occurrenceDate, endTime);
+    await tx.eventAssignment.deleteMany({
+      where: {
+        eventId,
+      },
+    });
 
-        return {
+    if (assignmentUserIds.length > 0) {
+      await tx.eventAssignment.createMany({
+        data: assignmentUserIds.map((userId) => ({
+          eventId,
+          userId,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    for (const occurrenceDate of occurrenceDates.slice(1)) {
+      const occurrenceStartsAt = isAllDay ? buildDateTime(occurrenceDate, "00:00") : buildDateTime(occurrenceDate, startTime);
+      const occurrenceEndsAt = isAllDay ? buildDateTime(occurrenceDate, "23:59") : buildDateTime(occurrenceDate, endTime);
+
+      await tx.event.create({
+        data: {
           familySpaceId,
           title,
           startsAt: occurrenceStartsAt,
           endsAt: occurrenceEndsAt < occurrenceStartsAt ? occurrenceStartsAt : occurrenceEndsAt,
           isAllDay,
           categoryId,
-          assignedTo,
+          assignedTo: assignmentUserIds[0] ?? null,
           location,
           note,
           createdBy: user.id,
-        };
-      }),
-    });
-  }
+          assignments:
+            assignmentUserIds.length > 0
+              ? {
+                  create: assignmentUserIds.map((userId) => ({ userId })),
+                }
+              : undefined,
+        },
+      });
+    }
+  });
 
   revalidatePath("/calendar");
   redirect(`/calendar?family=${familySpaceId}&month=${date.slice(0, 7)}&day=${date}&modal=day`);
