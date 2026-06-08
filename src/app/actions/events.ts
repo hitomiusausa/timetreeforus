@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ensureFamilyMember } from "@/lib/families";
 import { formatDateInput } from "@/lib/calendar";
-import { getCustomCategoryColor } from "@/lib/categories";
+import { getTitleLabelColor } from "@/lib/categories";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 
@@ -111,75 +111,6 @@ async function resolveAssignmentUserIds(familySpaceId: string, requestedUserIds:
   return Array.from(new Set(requestedUserIds.filter((userId) => allowedUserIds.has(userId))));
 }
 
-async function resolveCategoryId(familySpaceId: string, selectedCategoryId: string | null, formData: FormData) {
-  const customCategoryName = String(formData.get("categoryCustomName") ?? "").trim();
-  const customCategoryColor = getCustomCategoryColor(String(formData.get("categoryColor") ?? ""));
-
-  if (customCategoryName) {
-    const existingCategory = await prisma.eventCategory.findFirst({
-      where: {
-        familySpaceId,
-        name: customCategoryName,
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (existingCategory) {
-      await prisma.eventCategory.update({
-        where: {
-          id: existingCategory.id,
-        },
-        data: {
-          color: customCategoryColor,
-        },
-      });
-
-      return existingCategory.id;
-    }
-
-    const maxSortOrder = await prisma.eventCategory.aggregate({
-      where: {
-        familySpaceId,
-      },
-      _max: {
-        sortOrder: true,
-      },
-    });
-
-    const category = await prisma.eventCategory.create({
-      data: {
-        familySpaceId,
-        name: customCategoryName,
-        color: customCategoryColor,
-        sortOrder: (maxSortOrder._max.sortOrder ?? 0) + 1,
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    return category.id;
-  }
-
-  if (!selectedCategoryId) {
-    return null;
-  }
-
-  const selectedCategory = await prisma.eventCategory.findFirst({
-    where: {
-      id: selectedCategoryId,
-      familySpaceId,
-    },
-    select: {
-      id: true,
-    },
-  });
-
-  return selectedCategory?.id ?? null;
-}
-
 export async function createEventAction(formData: FormData) {
   const user = await requireUser();
   const familySpaceId = String(formData.get("familySpaceId") ?? "");
@@ -193,7 +124,7 @@ export async function createEventAction(formData: FormData) {
   const startTime = String(formData.get("startTime") ?? "09:00");
   const endTime = String(formData.get("endTime") ?? "10:00");
   const isAllDay = formData.get("isAllDay") === "on";
-  const selectedCategoryId = String(formData.get("categoryId") ?? "") || null;
+  const labelColor = titleCustom ? getTitleLabelColor(String(formData.get("labelColor") ?? "")) : null;
   const assignAll = formData.get("assignAll") === "on";
   const requestedAssignedUserIds = readAssignedUserIds(formData);
   const location = String(formData.get("location") ?? "").trim() || null;
@@ -206,7 +137,6 @@ export async function createEventAction(formData: FormData) {
   await ensureFamilyMember(user.id, familySpaceId);
 
   const occurrenceDates = Array.from(new Set([...buildOccurrenceDates(date, endDate, repeatRule), ...readCopyDates(formData, date)]));
-  const categoryId = await resolveCategoryId(familySpaceId, selectedCategoryId, formData);
   const assignmentUserIds = await resolveAssignmentUserIds(familySpaceId, requestedAssignedUserIds, assignAll);
 
   await prisma.$transaction(
@@ -221,7 +151,7 @@ export async function createEventAction(formData: FormData) {
           startsAt,
           endsAt: endsAt < startsAt ? startsAt : endsAt,
           isAllDay,
-          categoryId,
+          labelColor,
           assignedTo: assignmentUserIds[0] ?? null,
           location,
           note,
@@ -254,7 +184,7 @@ export async function updateEventAction(formData: FormData) {
   const startTime = String(formData.get("startTime") ?? "09:00");
   const endTime = String(formData.get("endTime") ?? "10:00");
   const isAllDay = formData.get("isAllDay") === "on";
-  const selectedCategoryId = String(formData.get("categoryId") ?? "") || null;
+  const labelColor = titleCustom ? getTitleLabelColor(String(formData.get("labelColor") ?? "")) : null;
   const assignAll = formData.get("assignAll") === "on";
   const requestedAssignedUserIds = readAssignedUserIds(formData);
   const location = String(formData.get("location") ?? "").trim() || null;
@@ -275,7 +205,6 @@ export async function updateEventAction(formData: FormData) {
   const additionalDates = Array.from(new Set([...occurrenceDates.slice(1), ...copyDates])).filter(
     (occurrenceDate) => occurrenceDate !== date,
   );
-  const categoryId = await resolveCategoryId(familySpaceId, selectedCategoryId, formData);
   const assignmentUserIds = await resolveAssignmentUserIds(familySpaceId, requestedAssignedUserIds, assignAll);
 
   await prisma.$transaction(async (tx) => {
@@ -290,7 +219,8 @@ export async function updateEventAction(formData: FormData) {
         startsAt,
         endsAt: endsAt < startsAt ? startsAt : endsAt,
         isAllDay,
-        categoryId,
+        categoryId: null,
+        labelColor,
         assignedTo: assignmentUserIds[0] ?? null,
         location,
         note,
@@ -324,7 +254,7 @@ export async function updateEventAction(formData: FormData) {
           startsAt: occurrenceStartsAt,
           endsAt: occurrenceEndsAt < occurrenceStartsAt ? occurrenceStartsAt : occurrenceEndsAt,
           isAllDay,
-          categoryId,
+          labelColor,
           assignedTo: assignmentUserIds[0] ?? null,
           location,
           note,

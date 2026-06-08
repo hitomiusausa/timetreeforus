@@ -805,10 +805,9 @@ textarea:focus {
   gap: 0.45rem;
 }
 
-.custom-category-box {
+.title-label-color-box {
   display: grid;
   gap: 0.55rem;
-  margin-top: 0.65rem;
 }
 
 .color-fieldset {

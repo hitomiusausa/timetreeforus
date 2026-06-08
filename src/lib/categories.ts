@@ -1,4 +1,4 @@
-export const customCategoryColors = [
+export const titleLabelColors = [
   { value: "#F5A3B7", label: "ローズ" },
   { value: "#F2C879", label: "ハニー" },
   { value: "#A7D86F", label: "リーフ" },
@@ -7,8 +7,8 @@ export const customCategoryColors = [
   { value: "#B7B4F3", label: "ラベンダー" },
 ];
 
-const customCategoryColorValues = new Set(customCategoryColors.map((color) => color.value));
+const titleLabelColorValues = new Set(titleLabelColors.map((color) => color.value));
 
-export function getCustomCategoryColor(value: string) {
-  return customCategoryColorValues.has(value) ? value : customCategoryColors[0].value;
+export function getTitleLabelColor(value: string) {
+  return titleLabelColorValues.has(value) ? value : titleLabelColors[0].value;
 }

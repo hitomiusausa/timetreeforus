@@ -53,6 +53,7 @@ type CalendarQueryRow = {
     events: Array<{
       id: string;
       categoryId: string | null;
+      labelColor: string | null;
       title: string;
       startsAt: string;
       endsAt: string;
@@ -205,6 +206,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                 json_build_object(
                   'id', e.id,
                   'categoryId', e.category_id,
+                  'labelColor', e.label_color,
                   'title', e.title,
                   'startsAt', e.starts_at,
                   'endsAt', e.ends_at,

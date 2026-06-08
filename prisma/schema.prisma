@@ -92,6 +92,7 @@ model Event {
   id            String    @id @default(uuid())
   familySpaceId String    @map("family_space_id")
   categoryId    String?   @map("category_id")
+  labelColor    String?   @map("label_color")
   title         String
   startsAt      DateTime  @map("starts_at")
   endsAt        DateTime  @map("ends_at")

@@ -34,7 +34,7 @@ import {
   parseDate,
   parseMonth,
 } from "@/lib/calendar";
-import { customCategoryColors } from "@/lib/categories";
+import { titleLabelColors } from "@/lib/categories";
 
 type ModalMode = "day" | "event" | "edit" | null;
 
@@ -67,6 +67,7 @@ type CalendarCategory = {
 type CalendarEvent = {
   id: string;
   categoryId: string | null;
+  labelColor: string | null;
   title: string;
   startsAt: string;
   endsAt: string;
@@ -170,19 +171,24 @@ function formatCopyDateLabel(dateKey: string) {
   }).format(parseDate(dateKey));
 }
 
-function CustomCategoryFields({ inputId }: { inputId: string }) {
+function getEventLabelColor(event: CalendarEvent) {
+  return event.labelColor ?? event.category?.color ?? "#e4e6e5";
+}
+
+function TitleLabelColorFields({ defaultColor }: { defaultColor?: string | null }) {
   return (
-    <div className="custom-category-box">
-      <div>
-        <label htmlFor={inputId}>カテゴリを自由入力</label>
-        <input id={inputId} name="categoryCustomName" placeholder="例: 習い事" />
-      </div>
+    <div className="title-label-color-box">
       <fieldset className="color-fieldset">
-        <legend>カテゴリ色</legend>
+        <legend>自由記述タイトルの色</legend>
         <div className="color-choice-grid">
-          {customCategoryColors.map((color, index) => (
+          {titleLabelColors.map((color, index) => (
             <label className="color-choice" key={color.value}>
-              <input name="categoryColor" type="radio" value={color.value} defaultChecked={index === 0} />
+              <input
+                name="labelColor"
+                type="radio"
+                value={color.value}
+                defaultChecked={defaultColor ? defaultColor === color.value : index === 0}
+              />
               <span
                 className="color-swatch"
                 style={{ "--category-color": color.value } as CSSProperties}
@@ -497,8 +503,8 @@ export function CalendarWorkspace({
                         className="event-pill"
                         key={event.id}
                         style={{
-                          backgroundColor: event.category?.color ?? "#e4e6e5",
-                          color: getLabelTextColor(event.category?.color),
+                          backgroundColor: getEventLabelColor(event),
+                          color: getLabelTextColor(getEventLabelColor(event)),
                         }}
                       >
                         {event.title}
@@ -667,7 +673,7 @@ export function CalendarWorkspace({
                         <div className="event-card-head">
                           <span
                             className="category-bar"
-                            style={{ backgroundColor: event.category?.color ?? "#6b7280" }}
+                            style={{ backgroundColor: getEventLabelColor(event) }}
                           />
                           <div>
                             <h3>{event.title}</h3>
@@ -761,6 +767,8 @@ export function CalendarWorkspace({
                   <input id="titleCustom" name="titleCustom" placeholder="例: 子どもの発表会" />
                 </div>
 
+                <TitleLabelColorFields />
+
                 <div className="two-cols">
                   <div>
                     <label htmlFor="date">開始日</label>
@@ -801,35 +809,21 @@ export function CalendarWorkspace({
                   </div>
                 </div>
 
-                <div className="two-cols">
-                  <fieldset className="assignee-fieldset">
-                    <legend>担当</legend>
-                    <div className="assignee-options">
-                      <label className="checkbox-row">
-                        <input name="assignAll" type="checkbox" />
-                        全員
+                <fieldset className="assignee-fieldset">
+                  <legend>担当</legend>
+                  <div className="assignee-options">
+                    <label className="checkbox-row">
+                      <input name="assignAll" type="checkbox" />
+                      全員
+                    </label>
+                    {family.members.map((member) => (
+                      <label className="checkbox-row" key={member.id}>
+                        <input name="assignedUserIds" type="checkbox" value={member.userId} />
+                        {member.user.displayName}
                       </label>
-                      {family.members.map((member) => (
-                        <label className="checkbox-row" key={member.id}>
-                          <input name="assignedUserIds" type="checkbox" value={member.userId} />
-                          {member.user.displayName}
-                        </label>
-                      ))}
-                    </div>
-                  </fieldset>
-                  <div>
-                    <label htmlFor="categoryId">カテゴリ</label>
-                    <select id="categoryId" name="categoryId" defaultValue="">
-                      <option value="">なし</option>
-                      {family.categories.map((category) => (
-                        <option value={category.id} key={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </select>
-                    <CustomCategoryFields inputId="categoryCustomName" />
+                    ))}
                   </div>
-                </div>
+                </fieldset>
 
                 <div>
                   <label htmlFor="location">場所</label>
@@ -913,6 +907,8 @@ export function CalendarWorkspace({
                   />
                 </div>
 
+                <TitleLabelColorFields defaultColor={editingEvent.labelColor} />
+
                 <div className="two-cols">
                   <div>
                     <label htmlFor="editDate">開始日</label>
@@ -974,40 +970,26 @@ export function CalendarWorkspace({
                   </div>
                 </div>
 
-                <div className="two-cols">
-                  <fieldset className="assignee-fieldset">
-                    <legend>担当</legend>
-                    <div className="assignee-options">
-                      <label className="checkbox-row">
-                        <input name="assignAll" type="checkbox" defaultChecked={editingAssignsEveryone} />
-                        全員
+                <fieldset className="assignee-fieldset">
+                  <legend>担当</legend>
+                  <div className="assignee-options">
+                    <label className="checkbox-row">
+                      <input name="assignAll" type="checkbox" defaultChecked={editingAssignsEveryone} />
+                      全員
+                    </label>
+                    {family.members.map((member) => (
+                      <label className="checkbox-row" key={member.id}>
+                        <input
+                          name="assignedUserIds"
+                          type="checkbox"
+                          value={member.userId}
+                          defaultChecked={editingAssignedUserIds.has(member.userId)}
+                        />
+                        {member.user.displayName}
                       </label>
-                      {family.members.map((member) => (
-                        <label className="checkbox-row" key={member.id}>
-                          <input
-                            name="assignedUserIds"
-                            type="checkbox"
-                            value={member.userId}
-                            defaultChecked={editingAssignedUserIds.has(member.userId)}
-                          />
-                          {member.user.displayName}
-                        </label>
-                      ))}
-                    </div>
-                  </fieldset>
-                  <div>
-                    <label htmlFor="editCategoryId">カテゴリ</label>
-                    <select id="editCategoryId" name="categoryId" defaultValue={editingEvent.categoryId ?? ""}>
-                      <option value="">なし</option>
-                      {family.categories.map((category) => (
-                        <option value={category.id} key={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </select>
-                    <CustomCategoryFields inputId="editCategoryCustomName" />
+                    ))}
                   </div>
-                </div>
+                </fieldset>
 
                 <div>
                   <label htmlFor="editLocation">場所</label>
