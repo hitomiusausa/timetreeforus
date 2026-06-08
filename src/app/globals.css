@@ -521,7 +521,7 @@ textarea:focus {
   display: inline-flex;
   min-height: 1.45em;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   align-self: start;
   justify-self: start;
   max-width: 100%;
@@ -531,8 +531,9 @@ textarea:focus {
   color: var(--foreground);
   font-size: 0.72rem;
   font-weight: 800;
-  line-height: 1;
-  padding: 0.02rem 0.55rem;
+  line-height: 1.12;
+  padding: 0.12rem 0.55rem 0.14rem;
+  text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -543,6 +544,7 @@ textarea:focus {
   bottom: 0.28rem;
   background: rgba(31, 45, 43, 0.72);
   color: #fff;
+  justify-content: center;
   min-width: 1.55em;
   text-align: center;
 }
@@ -1068,9 +1070,9 @@ textarea:focus {
   .event-pill {
     border-radius: 6px;
     font-size: 0.58rem;
-    line-height: 1;
-    min-height: 1.45em;
-    padding: 0.02rem 0.42rem;
+    line-height: 1.12;
+    min-height: 1.62em;
+    padding: 0.1rem 0.42rem 0.12rem;
   }
 
   .more-pill {
