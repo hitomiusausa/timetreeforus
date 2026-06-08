@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ChevronLeft,
@@ -32,6 +33,7 @@ import {
   parseDate,
   parseMonth,
 } from "@/lib/calendar";
+import { customCategoryColors } from "@/lib/categories";
 
 type ModalMode = "day" | "event" | "edit" | null;
 
@@ -151,6 +153,33 @@ function getAssigneeLabel(event: CalendarEvent, memberCount: number) {
   }
 
   return assignees.map((assignee) => assignee.displayName).join("、");
+}
+
+function CustomCategoryFields({ inputId }: { inputId: string }) {
+  return (
+    <div className="custom-category-box">
+      <div>
+        <label htmlFor={inputId}>新しいカテゴリ</label>
+        <input id={inputId} name="categoryCustomName" placeholder="例: 習い事" />
+      </div>
+      <fieldset className="color-fieldset">
+        <legend>カテゴリ色</legend>
+        <div className="color-choice-grid">
+          {customCategoryColors.map((color, index) => (
+            <label className="color-choice" key={color.value}>
+              <input name="categoryColor" type="radio" value={color.value} defaultChecked={index === 0} />
+              <span
+                className="color-swatch"
+                style={{ "--category-color": color.value } as CSSProperties}
+                aria-hidden="true"
+              />
+              <span>{color.label}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+    </div>
+  );
 }
 
 function updateCalendarUrl(familyId: string, month: string, day: string, modal: ModalMode, eventId?: string) {
@@ -687,6 +716,11 @@ export function CalendarWorkspace({
                   </label>
                 </div>
 
+                <div>
+                  <label htmlFor="copyDates">別の日にもコピー</label>
+                  <textarea id="copyDates" name="copyDates" rows={2} placeholder="例: 2026-06-12, 2026-06-18" />
+                </div>
+
                 <div className="two-cols">
                   <div>
                     <label htmlFor="startTime">開始</label>
@@ -724,6 +758,7 @@ export function CalendarWorkspace({
                         </option>
                       ))}
                     </select>
+                    <CustomCategoryFields inputId="categoryCustomName" />
                   </div>
                 </div>
 
@@ -847,6 +882,11 @@ export function CalendarWorkspace({
                   </label>
                 </div>
 
+                <div>
+                  <label htmlFor="editCopyDates">別の日にもコピー</label>
+                  <textarea id="editCopyDates" name="copyDates" rows={2} placeholder="例: 2026-06-12, 2026-06-18" />
+                </div>
+
                 <div className="two-cols">
                   <div>
                     <label htmlFor="editStartTime">開始</label>
@@ -899,6 +939,7 @@ export function CalendarWorkspace({
                         </option>
                       ))}
                     </select>
+                    <CustomCategoryFields inputId="editCategoryCustomName" />
                   </div>
                 </div>
 
