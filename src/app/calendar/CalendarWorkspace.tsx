@@ -13,6 +13,7 @@ import {
   RefreshCw,
   LogOut,
   MapPin,
+  Plus,
   Settings,
   SquarePen,
   X,
@@ -155,11 +156,25 @@ function getAssigneeLabel(event: CalendarEvent, memberCount: number) {
   return assignees.map((assignee) => assignee.displayName).join("、");
 }
 
+function addDateDays(dateKey: string, amount: number) {
+  const date = parseDate(dateKey);
+  date.setDate(date.getDate() + amount);
+  return formatDateInput(date);
+}
+
+function formatCopyDateLabel(dateKey: string) {
+  return new Intl.DateTimeFormat("ja-JP", {
+    month: "numeric",
+    day: "numeric",
+    weekday: "short",
+  }).format(parseDate(dateKey));
+}
+
 function CustomCategoryFields({ inputId }: { inputId: string }) {
   return (
     <div className="custom-category-box">
       <div>
-        <label htmlFor={inputId}>新しいカテゴリ</label>
+        <label htmlFor={inputId}>カテゴリを自由入力</label>
         <input id={inputId} name="categoryCustomName" placeholder="例: 習い事" />
       </div>
       <fieldset className="color-fieldset">
@@ -178,6 +193,63 @@ function CustomCategoryFields({ inputId }: { inputId: string }) {
           ))}
         </div>
       </fieldset>
+    </div>
+  );
+}
+
+function CopyDatesField({ inputId, baseDate }: { inputId: string; baseDate: string }) {
+  const [draftDate, setDraftDate] = useState("");
+  const [copyDates, setCopyDates] = useState<string[]>([]);
+
+  function addCopyDate(dateKey: string) {
+    if (!dateKey || dateKey === baseDate) {
+      return;
+    }
+
+    setCopyDates((currentDates) =>
+      currentDates.includes(dateKey) ? currentDates : [...currentDates, dateKey].sort(),
+    );
+    setDraftDate("");
+  }
+
+  function removeCopyDate(dateKey: string) {
+    setCopyDates((currentDates) => currentDates.filter((currentDate) => currentDate !== dateKey));
+  }
+
+  return (
+    <div className="copy-dates-field">
+      <label htmlFor={inputId}>別の日にもコピー</label>
+      <div className="copy-date-row">
+        <input id={inputId} type="date" value={draftDate} onChange={(event) => setDraftDate(event.target.value)} />
+        <button className="secondary-button copy-date-add" type="button" onClick={() => addCopyDate(draftDate)}>
+          <Plus aria-hidden="true" size={16} />
+          追加
+        </button>
+      </div>
+      <div className="copy-date-shortcuts" aria-label="コピー先の候補日">
+        <button type="button" onClick={() => addCopyDate(addDateDays(baseDate, 1))}>
+          翌日
+        </button>
+        <button type="button" onClick={() => addCopyDate(addDateDays(baseDate, 7))}>
+          1週間後
+        </button>
+        <button type="button" onClick={() => addCopyDate(addDateDays(baseDate, 14))}>
+          2週間後
+        </button>
+      </div>
+      {copyDates.length > 0 ? (
+        <div className="copy-date-chips" aria-label="コピー先の日付">
+          {copyDates.map((dateKey) => (
+            <span className="copy-date-chip" key={dateKey}>
+              <input type="hidden" name="copyDates" value={dateKey} />
+              {formatCopyDateLabel(dateKey)}
+              <button type="button" onClick={() => removeCopyDate(dateKey)} aria-label={`${dateKey}を外す`}>
+                <X aria-hidden="true" size={14} />
+              </button>
+            </span>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -716,10 +788,7 @@ export function CalendarWorkspace({
                   </label>
                 </div>
 
-                <div>
-                  <label htmlFor="copyDates">別の日にもコピー</label>
-                  <textarea id="copyDates" name="copyDates" rows={2} placeholder="例: 2026-06-12, 2026-06-18" />
-                </div>
+                <CopyDatesField inputId="copyDates" baseDate={selectedDayKey} />
 
                 <div className="two-cols">
                   <div>
@@ -750,7 +819,7 @@ export function CalendarWorkspace({
                   </fieldset>
                   <div>
                     <label htmlFor="categoryId">カテゴリ</label>
-                    <select id="categoryId" name="categoryId" defaultValue={family.categories[0]?.id ?? ""}>
+                    <select id="categoryId" name="categoryId" defaultValue="">
                       <option value="">なし</option>
                       {family.categories.map((category) => (
                         <option value={category.id} key={category.id}>
@@ -882,10 +951,7 @@ export function CalendarWorkspace({
                   </label>
                 </div>
 
-                <div>
-                  <label htmlFor="editCopyDates">別の日にもコピー</label>
-                  <textarea id="editCopyDates" name="copyDates" rows={2} placeholder="例: 2026-06-12, 2026-06-18" />
-                </div>
+                <CopyDatesField inputId="editCopyDates" baseDate={formatDateInput(asDate(editingEvent.startsAt))} />
 
                 <div className="two-cols">
                   <div>

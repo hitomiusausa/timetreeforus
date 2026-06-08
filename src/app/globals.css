@@ -871,6 +871,78 @@ textarea:focus {
   flex: 0 0 auto;
 }
 
+.copy-dates-field {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.copy-date-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.copy-date-add {
+  gap: 0.35rem;
+  min-height: 42px;
+  padding-inline: 0.8rem;
+}
+
+.copy-date-shortcuts,
+.copy-date-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.copy-date-shortcuts button,
+.copy-date-chip {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.copy-date-shortcuts button {
+  background: rgba(107, 230, 215, 0.14);
+  color: var(--primary-strong);
+  cursor: pointer;
+  padding: 0 0.7rem;
+}
+
+.copy-date-shortcuts button:hover {
+  background: rgba(107, 230, 215, 0.24);
+}
+
+.copy-date-chip {
+  gap: 0.35rem;
+  background: rgba(31, 45, 43, 0.08);
+  color: var(--foreground);
+  padding: 0.12rem 0.28rem 0.12rem 0.7rem;
+}
+
+.copy-date-chip button {
+  display: inline-grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0;
+}
+
+.copy-date-chip button:hover {
+  background: rgba(230, 107, 121, 0.16);
+  color: #913640;
+}
+
 .checkbox-row {
   display: flex;
   min-height: 44px;
@@ -1033,6 +1105,10 @@ textarea:focus {
   }
 
   .color-choice-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .copy-date-row {
     grid-template-columns: 1fr;
   }
 }

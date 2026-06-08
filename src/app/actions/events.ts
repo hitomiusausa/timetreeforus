@@ -64,14 +64,17 @@ function isValidDateInput(value: string) {
 }
 
 function readCopyDates(formData: FormData, originalDate: string) {
-  const rawCopyDates = String(formData.get("copyDates") ?? "").trim();
+  const rawCopyDates = formData
+    .getAll("copyDates")
+    .map((value) => String(value).trim())
+    .filter(Boolean);
 
-  if (!rawCopyDates) {
+  if (rawCopyDates.length === 0) {
     return [];
   }
 
   const dates = rawCopyDates
-    .split(/[\s,、]+/)
+    .flatMap((value) => value.split(/[\s,、]+/))
     .map((value) => value.trim())
     .filter(Boolean)
     .filter((value) => value !== originalDate && isValidDateInput(value));
@@ -110,6 +113,7 @@ async function resolveAssignmentUserIds(familySpaceId: string, requestedUserIds:
 
 async function resolveCategoryId(familySpaceId: string, selectedCategoryId: string | null, formData: FormData) {
   const customCategoryName = String(formData.get("categoryCustomName") ?? "").trim();
+  const customCategoryColor = getCustomCategoryColor(String(formData.get("categoryColor") ?? ""));
 
   if (customCategoryName) {
     const existingCategory = await prisma.eventCategory.findFirst({
@@ -123,10 +127,18 @@ async function resolveCategoryId(familySpaceId: string, selectedCategoryId: stri
     });
 
     if (existingCategory) {
+      await prisma.eventCategory.update({
+        where: {
+          id: existingCategory.id,
+        },
+        data: {
+          color: customCategoryColor,
+        },
+      });
+
       return existingCategory.id;
     }
 
-    const color = getCustomCategoryColor(String(formData.get("categoryColor") ?? ""));
     const maxSortOrder = await prisma.eventCategory.aggregate({
       where: {
         familySpaceId,
@@ -140,7 +152,7 @@ async function resolveCategoryId(familySpaceId: string, selectedCategoryId: stri
       data: {
         familySpaceId,
         name: customCategoryName,
-        color,
+        color: customCategoryColor,
         sortOrder: (maxSortOrder._max.sortOrder ?? 0) + 1,
       },
       select: {
