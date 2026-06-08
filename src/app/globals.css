@@ -186,6 +186,11 @@ textarea:focus {
   cursor: pointer;
   font-weight: 800;
   padding: 0.75rem 1rem;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 90ms ease;
 }
 
 .primary-button {
@@ -195,6 +200,7 @@ textarea:focus {
 
 .primary-button:hover {
   background: var(--primary-strong);
+  box-shadow: 0 8px 18px rgba(71, 207, 192, 0.22);
 }
 
 .secondary-button,
@@ -209,6 +215,7 @@ textarea:focus {
 .icon-button:hover,
 .mini-icon-button:hover {
   background: var(--soft);
+  box-shadow: 0 7px 16px rgba(31, 45, 43, 0.08);
 }
 
 .danger-button {
@@ -219,6 +226,15 @@ textarea:focus {
 
 .danger-button:hover {
   background: rgba(230, 107, 121, 0.2);
+  box-shadow: 0 7px 16px rgba(145, 54, 64, 0.1);
+}
+
+.primary-button:active,
+.secondary-button:active,
+.today-button:active,
+.danger-button:active {
+  box-shadow: inset 0 2px 4px rgba(31, 45, 43, 0.14);
+  transform: translateY(1px) scale(0.985);
 }
 
 .auth-link {
@@ -420,6 +436,17 @@ textarea:focus {
   background: #fff;
   color: var(--foreground);
   cursor: pointer;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 90ms ease;
+}
+
+.icon-button:active,
+.mini-icon-button:active {
+  box-shadow: inset 0 2px 4px rgba(31, 45, 43, 0.12);
+  transform: translateY(1px) scale(0.96);
 }
 
 .icon-button {
@@ -469,11 +496,22 @@ textarea:focus {
   padding: 0.45rem;
   overflow: hidden;
   text-align: left;
+  transition:
+    background-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 90ms ease;
   width: 100%;
 }
 
 .day-cell:hover {
   background: rgba(107, 230, 215, 0.16);
+  box-shadow: inset 0 0 0 2px rgba(107, 230, 215, 0.18);
+}
+
+.day-cell:active {
+  background: rgba(107, 230, 215, 0.22);
+  box-shadow: inset 0 0 0 2px rgba(107, 230, 215, 0.3);
+  transform: scale(0.992);
 }
 
 .selected-day {
@@ -677,10 +715,24 @@ textarea:focus {
   color: var(--primary-strong);
   font-weight: 800;
   padding: 0.45rem 0.65rem;
+  transition:
+    background-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 90ms ease;
 }
 
 .calendar-open-link[aria-current="page"] {
   background: rgba(107, 230, 215, 0.18);
+}
+
+.calendar-open-link:hover {
+  background: var(--soft);
+  box-shadow: 0 7px 16px rgba(31, 45, 43, 0.08);
+}
+
+.calendar-open-link:active {
+  box-shadow: inset 0 2px 4px rgba(31, 45, 43, 0.12);
+  transform: translateY(1px) scale(0.985);
 }
 
 .calendar-delete-details {
@@ -913,10 +965,20 @@ textarea:focus {
   color: var(--primary-strong);
   cursor: pointer;
   padding: 0 0.7rem;
+  transition:
+    background-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 90ms ease;
 }
 
 .copy-date-shortcuts button:hover {
   background: rgba(107, 230, 215, 0.24);
+  box-shadow: 0 5px 12px rgba(31, 45, 43, 0.07);
+}
+
+.copy-date-shortcuts button:active {
+  box-shadow: inset 0 2px 4px rgba(31, 45, 43, 0.12);
+  transform: translateY(1px) scale(0.97);
 }
 
 .copy-date-chip {
@@ -937,11 +999,47 @@ textarea:focus {
   color: var(--muted);
   cursor: pointer;
   padding: 0;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease,
+    transform 90ms ease;
 }
 
 .copy-date-chip button:hover {
   background: rgba(230, 107, 121, 0.16);
   color: #913640;
+}
+
+.copy-date-chip button:active {
+  transform: scale(0.9);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primary-button,
+  .secondary-button,
+  .today-button,
+  .danger-button,
+  .icon-button,
+  .mini-icon-button,
+  .day-cell,
+  .calendar-open-link,
+  .copy-date-shortcuts button,
+  .copy-date-chip button {
+    transition: none;
+  }
+
+  .primary-button:active,
+  .secondary-button:active,
+  .today-button:active,
+  .danger-button:active,
+  .icon-button:active,
+  .mini-icon-button:active,
+  .day-cell:active,
+  .calendar-open-link:active,
+  .copy-date-shortcuts button:active,
+  .copy-date-chip button:active {
+    transform: none;
+  }
 }
 
 .checkbox-row {
