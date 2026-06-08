@@ -532,7 +532,7 @@ textarea:focus {
   font-size: 0.72rem;
   font-weight: 800;
   line-height: 1.12;
-  padding: 0.12rem 0.55rem 0.14rem;
+  padding: 0.18rem 0.55rem 0.08rem;
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1072,7 +1072,7 @@ textarea:focus {
     font-size: 0.58rem;
     line-height: 1.12;
     min-height: 1.62em;
-    padding: 0.1rem 0.42rem 0.12rem;
+    padding: 0.15rem 0.42rem 0.07rem;
   }
 
   .more-pill {
