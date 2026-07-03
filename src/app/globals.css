@@ -1163,7 +1163,7 @@ textarea:focus {
   }
 
   .day-cell {
-    aspect-ratio: 1 / 1.42;
+    aspect-ratio: 1 / 1.62;
     gap: 0.16rem;
     min-height: 0;
     padding: 0.3rem;
@@ -1191,7 +1191,7 @@ textarea:focus {
     font-size: 0.56rem;
     padding: 0.02rem 0.3rem;
     right: 0.22rem;
-    bottom: 0.2rem;
+    bottom: 0.16rem;
   }
 
   .day-number {
