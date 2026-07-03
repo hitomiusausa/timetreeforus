@@ -498,9 +498,9 @@ export function CalendarWorkspace({
                 >
                   <span className="day-number">{day.getDate()}</span>
                   <div className="day-events">
-                    {dayEvents.slice(0, 2).map((event) => (
+                    {dayEvents.slice(0, 4).map((event, eventIndex) => (
                       <span
-                        className="event-pill"
+                        className={`event-pill ${eventIndex >= 3 ? "desktop-only-event" : ""}`}
                         key={event.id}
                         style={{
                           backgroundColor: getEventLabelColor(event),
@@ -511,7 +511,8 @@ export function CalendarWorkspace({
                       </span>
                     ))}
                   </div>
-                  {dayEvents.length > 2 ? <span className="more-pill">+{dayEvents.length - 2}</span> : null}
+                  {dayEvents.length > 3 ? <span className="more-pill mobile-more-pill">+{dayEvents.length - 3}</span> : null}
+                  {dayEvents.length > 4 ? <span className="more-pill desktop-more-pill">+{dayEvents.length - 4}</span> : null}
                 </button>
               );
             })}
