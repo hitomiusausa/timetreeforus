@@ -343,6 +343,57 @@ textarea:focus {
   padding: 1rem;
 }
 
+.calendar-panel {
+  transform-origin: center;
+  will-change: opacity, transform;
+}
+
+.month-transition-exit-next {
+  animation: month-slide-out-left 170ms ease-in forwards;
+  pointer-events: none;
+}
+
+.month-transition-exit-prev {
+  animation: month-slide-out-right 170ms ease-in forwards;
+  pointer-events: none;
+}
+
+.month-transition-enter-next {
+  animation: month-slide-in-right 220ms ease-out both;
+}
+
+.month-transition-enter-prev {
+  animation: month-slide-in-left 220ms ease-out both;
+}
+
+@keyframes month-slide-out-left {
+  to {
+    opacity: 0.18;
+    transform: translateX(-26px) scale(0.985);
+  }
+}
+
+@keyframes month-slide-out-right {
+  to {
+    opacity: 0.18;
+    transform: translateX(26px) scale(0.985);
+  }
+}
+
+@keyframes month-slide-in-right {
+  from {
+    opacity: 0.18;
+    transform: translateX(26px) scale(0.985);
+  }
+}
+
+@keyframes month-slide-in-left {
+  from {
+    opacity: 0.18;
+    transform: translateX(-26px) scale(0.985);
+  }
+}
+
 .sidebar,
 .detail-panel {
   display: grid;
@@ -1096,6 +1147,13 @@ textarea:focus {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .month-transition-exit-next,
+  .month-transition-exit-prev,
+  .month-transition-enter-next,
+  .month-transition-enter-prev {
+    animation: none;
+  }
+
   .primary-button,
   .secondary-button,
   .today-button,
