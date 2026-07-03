@@ -184,7 +184,7 @@ function formatCopyDateLabel(dateKey: string) {
 }
 
 function getEventLabelColor(event: CalendarEvent) {
-  return event.labelColor ?? event.category?.color ?? "#F2C879";
+  return event.labelColor ?? event.category?.color ?? "#fcf36d";
 }
 
 function TitleLabelColorFields({ defaultColor }: { defaultColor?: string | null }) {
