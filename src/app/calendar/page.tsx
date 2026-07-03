@@ -50,6 +50,10 @@ type CalendarQueryRow = {
       name: string;
       color: string;
     }>;
+    titlePresets: Array<{
+      id: string;
+      name: string;
+    }>;
     events: Array<{
       id: string;
       categoryId: string | null;
@@ -197,6 +201,20 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
               )
               FROM "event_categories" c
               WHERE c.family_space_id = fs.id
+            ),
+            '[]'::json
+          ),
+          'titlePresets', COALESCE(
+            (
+              SELECT json_agg(
+                json_build_object(
+                  'id', tp.id,
+                  'name', tp.name
+                )
+                ORDER BY tp.sort_order ASC, tp.created_at ASC
+              )
+              FROM "event_title_presets" tp
+              WHERE tp.family_space_id = fs.id
             ),
             '[]'::json
           ),

@@ -22,7 +22,13 @@ import {
 } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
 import { createEventAction, deleteEventAction, updateEventAction } from "@/app/actions/events";
-import { createCalendarAction, deleteCalendarAction, updateCalendarNameAction } from "@/app/actions/family";
+import {
+  createCalendarAction,
+  createTitlePresetAction,
+  deleteCalendarAction,
+  deleteTitlePresetAction,
+  updateCalendarNameAction,
+} from "@/app/actions/family";
 import {
   addMonths,
   buildMonthGrid,
@@ -64,6 +70,11 @@ type CalendarCategory = {
   color: string;
 };
 
+type CalendarTitlePreset = {
+  id: string;
+  name: string;
+};
+
 type CalendarEvent = {
   id: string;
   categoryId: string | null;
@@ -96,6 +107,7 @@ type CalendarFamily = {
   inviteCode: string;
   members: CalendarMember[];
   categories: CalendarCategory[];
+  titlePresets: CalendarTitlePreset[];
   events: CalendarEvent[];
 };
 
@@ -134,6 +146,10 @@ const titleOptions = [
   "食事会",
   "仕事",
   "学校",
+  "美容院",
+  "ジム",
+  "プール",
+  "飲み会",
 ];
 
 function asDate(value: string) {
@@ -326,6 +342,15 @@ export function CalendarWorkspace({
   }, [family.events]);
 
   const selectedEvents = eventsByDay.get(selectedDayKey) ?? [];
+  const availableTitleOptions = useMemo(() => {
+    const options = new Set(titleOptions);
+
+    for (const preset of family.titlePresets) {
+      options.add(preset.name);
+    }
+
+    return Array.from(options);
+  }, [family.titlePresets]);
   const editingEvent = editingEventId ? family.events.find((event) => event.id === editingEventId) : null;
   const editingAssignedUserIds = new Set(
     editingEvent
@@ -579,6 +604,37 @@ export function CalendarWorkspace({
                 </section>
 
                 <section className="settings-section">
+                  <h3>タイトル候補</h3>
+                  <form action={createTitlePresetAction} className="title-preset-form">
+                    <input type="hidden" name="familySpaceId" value={family.id} />
+                    <div>
+                      <label htmlFor="newTitlePreset">候補を追加</label>
+                      <input id="newTitlePreset" name="name" placeholder="例: いつものクリニック" required />
+                    </div>
+                    <button className="secondary-button" type="submit">
+                      追加
+                    </button>
+                  </form>
+
+                  {family.titlePresets.length > 0 ? (
+                    <div className="title-preset-list">
+                      {family.titlePresets.map((preset) => (
+                        <div className="title-preset-item" key={preset.id}>
+                          <span>{preset.name}</span>
+                          <form action={deleteTitlePresetAction}>
+                            <input type="hidden" name="familySpaceId" value={family.id} />
+                            <input type="hidden" name="titlePresetId" value={preset.id} />
+                            <button className="mini-icon-button" type="submit" aria-label={`${preset.name}を削除`} title="削除">
+                              <Trash2 aria-hidden="true" size={15} />
+                            </button>
+                          </form>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </section>
+
+                <section className="settings-section">
                   <h3>カレンダー</h3>
                   <form action={createCalendarAction} className="calendar-add-form">
                     <input type="hidden" name="currentFamilySpaceId" value={family.id} />
@@ -767,7 +823,7 @@ export function CalendarWorkspace({
                   <label htmlFor="titlePreset">タイトル</label>
                   <select id="titlePreset" name="titlePreset" defaultValue="">
                     <option value="">選択してください</option>
-                    {titleOptions.map((option) => (
+                    {availableTitleOptions.map((option) => (
                       <option value={option} key={option}>
                         {option}
                       </option>
@@ -899,10 +955,10 @@ export function CalendarWorkspace({
                   <select
                     id="editTitlePreset"
                     name="titlePreset"
-                    defaultValue={titleOptions.includes(editingEvent.title) ? editingEvent.title : ""}
+                    defaultValue={availableTitleOptions.includes(editingEvent.title) ? editingEvent.title : ""}
                   >
                     <option value="">選択してください</option>
-                    {titleOptions.map((option) => (
+                    {availableTitleOptions.map((option) => (
                       <option value={option} key={option}>
                         {option}
                       </option>
@@ -915,7 +971,7 @@ export function CalendarWorkspace({
                   <input
                     id="editTitleCustom"
                     name="titleCustom"
-                    defaultValue={titleOptions.includes(editingEvent.title) ? "" : editingEvent.title}
+                    defaultValue={availableTitleOptions.includes(editingEvent.title) ? "" : editingEvent.title}
                     placeholder="例: 子どもの発表会"
                   />
                 </div>

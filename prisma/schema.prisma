@@ -52,6 +52,7 @@ model FamilySpace {
   creator       User            @relation("FamilyCreator", fields: [createdBy], references: [id])
   members       FamilyMember[]
   categories    EventCategory[]
+  titlePresets  EventTitlePreset[]
   events        Event[]
   notifications Notification[]
 
@@ -86,6 +87,21 @@ model EventCategory {
 
   @@index([familySpaceId, sortOrder])
   @@map("event_categories")
+}
+
+model EventTitlePreset {
+  id            String   @id @default(uuid())
+  familySpaceId String   @map("family_space_id")
+  name          String
+  sortOrder     Int      @default(0) @map("sort_order")
+  createdBy     String   @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  familySpace FamilySpace @relation(fields: [familySpaceId], references: [id], onDelete: Cascade)
+
+  @@unique([familySpaceId, name])
+  @@index([familySpaceId, sortOrder])
+  @@map("event_title_presets")
 }
 
 model Event {

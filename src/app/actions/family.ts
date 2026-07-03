@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { makeInviteCode } from "@/lib/families";
+import { ensureFamilyMember, makeInviteCode } from "@/lib/families";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 
@@ -174,6 +174,73 @@ export async function deleteCalendarAction(formData: FormData) {
 
   revalidatePath("/calendar");
   redirect(nextMembership ? `/calendar?family=${nextMembership.familySpaceId}` : "/setup");
+}
+
+export async function createTitlePresetAction(formData: FormData) {
+  const user = await requireUser();
+  const familySpaceId = String(formData.get("familySpaceId") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+
+  if (!familySpaceId || !name) {
+    redirect(`/calendar${familySpaceId ? `?family=${familySpaceId}` : ""}`);
+  }
+
+  await ensureFamilyMember(user.id, familySpaceId);
+
+  const existingPreset = await prisma.eventTitlePreset.findFirst({
+    where: {
+      familySpaceId,
+      name,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!existingPreset) {
+    const maxSortOrder = await prisma.eventTitlePreset.aggregate({
+      where: {
+        familySpaceId,
+      },
+      _max: {
+        sortOrder: true,
+      },
+    });
+
+    await prisma.eventTitlePreset.create({
+      data: {
+        familySpaceId,
+        name,
+        sortOrder: (maxSortOrder._max.sortOrder ?? 0) + 1,
+        createdBy: user.id,
+      },
+    });
+  }
+
+  revalidatePath("/calendar");
+  redirect(`/calendar?family=${familySpaceId}`);
+}
+
+export async function deleteTitlePresetAction(formData: FormData) {
+  const user = await requireUser();
+  const familySpaceId = String(formData.get("familySpaceId") ?? "");
+  const titlePresetId = String(formData.get("titlePresetId") ?? "");
+
+  if (!familySpaceId || !titlePresetId) {
+    redirect(`/calendar${familySpaceId ? `?family=${familySpaceId}` : ""}`);
+  }
+
+  await ensureFamilyMember(user.id, familySpaceId);
+
+  await prisma.eventTitlePreset.deleteMany({
+    where: {
+      id: titlePresetId,
+      familySpaceId,
+    },
+  });
+
+  revalidatePath("/calendar");
+  redirect(`/calendar?family=${familySpaceId}`);
 }
 
 export async function joinFamilyAction(formData: FormData) {

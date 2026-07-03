@@ -672,12 +672,15 @@ textarea:focus {
 .calendar-management-list,
 .calendar-management-item,
 .calendar-name-form,
-.calendar-delete-form {
+.calendar-delete-form,
+.title-preset-form,
+.title-preset-list {
   display: grid;
   gap: 0.65rem;
 }
 
-.calendar-add-form {
+.calendar-add-form,
+.title-preset-form {
   margin-bottom: 0.9rem;
 }
 
@@ -707,6 +710,26 @@ textarea:focus {
 .calendar-management-head p {
   font-weight: 800;
   margin: 0;
+}
+
+.title-preset-list {
+  gap: 0.45rem;
+}
+
+.title-preset-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 0.5rem 0.55rem;
+}
+
+.title-preset-item span {
+  font-weight: 800;
+  overflow-wrap: anywhere;
 }
 
 .calendar-management-head small {
