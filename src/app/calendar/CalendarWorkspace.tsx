@@ -3,12 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { CSSProperties } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import type { CSSProperties, TouchEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  Copy,
   PencilLine,
   RefreshCw,
   LogOut,
@@ -191,6 +192,10 @@ function addDateDays(dateKey: string, amount: number) {
   return formatDateInput(date);
 }
 
+function buildCopyDateChoices(baseDate: string) {
+  return Array.from({ length: 14 }, (_, index) => addDateDays(baseDate, index + 1));
+}
+
 function formatCopyDateLabel(dateKey: string) {
   return new Intl.DateTimeFormat("ja-JP", {
     month: "numeric",
@@ -234,6 +239,7 @@ function TitleLabelColorFields({ defaultColor }: { defaultColor?: string | null 
 function CopyDatesField({ inputId, baseDate }: { inputId: string; baseDate: string }) {
   const [draftDate, setDraftDate] = useState("");
   const [copyDates, setCopyDates] = useState<string[]>([]);
+  const copyDateChoices = useMemo(() => buildCopyDateChoices(baseDate), [baseDate]);
 
   function addCopyDate(dateKey: string) {
     if (!dateKey || dateKey === baseDate) {
@@ -244,6 +250,18 @@ function CopyDatesField({ inputId, baseDate }: { inputId: string; baseDate: stri
       currentDates.includes(dateKey) ? currentDates : [...currentDates, dateKey].sort(),
     );
     setDraftDate("");
+  }
+
+  function toggleCopyDate(dateKey: string) {
+    if (dateKey === baseDate) {
+      return;
+    }
+
+    setCopyDates((currentDates) =>
+      currentDates.includes(dateKey)
+        ? currentDates.filter((currentDate) => currentDate !== dateKey)
+        : [...currentDates, dateKey].sort(),
+    );
   }
 
   function removeCopyDate(dateKey: string) {
@@ -270,6 +288,23 @@ function CopyDatesField({ inputId, baseDate }: { inputId: string; baseDate: stri
         <button type="button" onClick={() => addCopyDate(addDateDays(baseDate, 14))}>
           2週間後
         </button>
+      </div>
+      <div className="copy-date-calendar" aria-label="近い日付からコピー先を選択">
+        {copyDateChoices.map((dateKey) => {
+          const isSelected = copyDates.includes(dateKey);
+
+          return (
+            <button
+              className={isSelected ? "is-selected" : ""}
+              type="button"
+              key={dateKey}
+              aria-pressed={isSelected}
+              onClick={() => toggleCopyDate(dateKey)}
+            >
+              {formatCopyDateLabel(dateKey)}
+            </button>
+          );
+        })}
       </div>
       {copyDates.length > 0 ? (
         <div className="copy-date-chips" aria-label="コピー先の日付">
@@ -315,6 +350,9 @@ export function CalendarWorkspace({
   const [modal, setModal] = useState<ModalMode>(initialModal);
   const [editingEventId, setEditingEventId] = useState(initialEventId ?? null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [copySourceEvent, setCopySourceEvent] = useState<CalendarEvent | null>(null);
+  const [eventFormDateKey, setEventFormDateKey] = useState(initialDay);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const monthDate = parseMonth(initialMonth);
   const monthKey = formatMonthInput(monthDate);
   const monthDays = buildMonthGrid(monthDate);
@@ -352,6 +390,19 @@ export function CalendarWorkspace({
     return Array.from(options);
   }, [family.titlePresets]);
   const editingEvent = editingEventId ? family.events.find((event) => event.id === editingEventId) : null;
+  const copySourceDateKey = copySourceEvent ? formatDateInput(asDate(copySourceEvent.startsAt)) : eventFormDateKey;
+  const copySourceTitleIsPreset = copySourceEvent ? availableTitleOptions.includes(copySourceEvent.title) : false;
+  const copySourceAssignedUserIds = new Set(
+    copySourceEvent
+      ? copySourceEvent.assignees.length > 0
+        ? copySourceEvent.assignees.map((assignee) => assignee.id)
+        : copySourceEvent.assignedTo
+          ? [copySourceEvent.assignedTo]
+          : []
+      : [],
+  );
+  const copySourceAssignsEveryone =
+    family.members.length > 0 && copySourceAssignedUserIds.size >= family.members.length;
   const editingAssignedUserIds = new Set(
     editingEvent
       ? editingEvent.assignees.length > 0
@@ -408,7 +459,9 @@ export function CalendarWorkspace({
   function openDay(key: string) {
     const nextModal = (eventsByDay.get(key)?.length ?? 0) > 0 ? "day" : "event";
     setSelectedDayKey(key);
+    setEventFormDateKey(key);
     setEditingEventId(null);
+    setCopySourceEvent(null);
     setModal(nextModal);
     updateCalendarUrl(family.id, monthKey, key, nextModal);
   }
@@ -416,24 +469,40 @@ export function CalendarWorkspace({
   function closeModal() {
     setModal(null);
     setEditingEventId(null);
+    setCopySourceEvent(null);
     updateCalendarUrl(family.id, monthKey, selectedDayKey, null);
   }
 
   function openAddForm() {
     setEditingEventId(null);
+    setCopySourceEvent(null);
+    setEventFormDateKey(selectedDayKey);
     setModal("event");
     updateCalendarUrl(family.id, monthKey, selectedDayKey, "event");
   }
 
+  function openCopyForm(event: CalendarEvent) {
+    const eventDateKey = formatDateInput(asDate(event.startsAt));
+    setSelectedDayKey(eventDateKey);
+    setEventFormDateKey(eventDateKey);
+    setEditingEventId(null);
+    setCopySourceEvent(event);
+    setModal("event");
+    updateCalendarUrl(family.id, monthKey, eventDateKey, "event");
+  }
+
   function openEditForm(eventId: string) {
     setEditingEventId(eventId);
+    setCopySourceEvent(null);
     setModal("edit");
     updateCalendarUrl(family.id, monthKey, selectedDayKey, "edit", eventId);
   }
 
   function selectToday() {
     setSelectedDayKey(todayKey);
+    setEventFormDateKey(todayKey);
     setEditingEventId(null);
+    setCopySourceEvent(null);
     setModal(null);
 
     if (monthKey === thisMonth) {
@@ -442,6 +511,43 @@ export function CalendarWorkspace({
     }
 
     router.push(`/calendar?family=${family.id}&month=${thisMonth}&day=${todayKey}`);
+  }
+
+  function navigateMonth(direction: -1 | 1) {
+    const destinationMonth = direction < 0 ? previousMonth : nextMonth;
+    setModal(null);
+    setEditingEventId(null);
+    setCopySourceEvent(null);
+    router.push(`/calendar?family=${family.id}&month=${destinationMonth}&day=${selectedDayKey}`);
+  }
+
+  function handleCalendarTouchStart(event: TouchEvent<HTMLElement>) {
+    if (event.touches.length !== 1) {
+      touchStartRef.current = null;
+      return;
+    }
+
+    const touch = event.touches[0];
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+  }
+
+  function handleCalendarTouchEnd(event: TouchEvent<HTMLElement>) {
+    const start = touchStartRef.current;
+    touchStartRef.current = null;
+
+    if (!start || event.changedTouches.length !== 1) {
+      return;
+    }
+
+    const touch = event.changedTouches[0];
+    const deltaX = touch.clientX - start.x;
+    const deltaY = touch.clientY - start.y;
+
+    if (Math.abs(deltaX) < 70 || Math.abs(deltaX) < Math.abs(deltaY) * 1.25) {
+      return;
+    }
+
+    navigateMonth(deltaX > 0 ? -1 : 1);
   }
 
   return (
@@ -473,7 +579,7 @@ export function CalendarWorkspace({
       </header>
 
       <section className="workspace">
-        <section className="calendar-panel">
+        <section className="calendar-panel" onTouchStart={handleCalendarTouchStart} onTouchEnd={handleCalendarTouchEnd}>
           <div className="calendar-toolbar">
             <div>
               <p className="eyebrow">Month</p>
@@ -755,6 +861,15 @@ export function CalendarWorkspace({
                             <button
                               className="mini-icon-button"
                               type="button"
+                              onClick={() => openCopyForm(event)}
+                              aria-label="予定を複製"
+                              title="予定を複製"
+                            >
+                              <Copy aria-hidden="true" size={16} />
+                            </button>
+                            <button
+                              className="mini-icon-button"
+                              type="button"
                               onClick={() => openEditForm(event.id)}
                               aria-label="予定を編集"
                               title="予定を編集"
@@ -816,12 +931,26 @@ export function CalendarWorkspace({
                 </button>
               </div>
 
-              <form action={createEventAction} className="event-form modal-event-form" key={`create-${selectedDayKey}`}>
+              <form
+                action={createEventAction}
+                className="event-form modal-event-form"
+                key={`create-${selectedDayKey}-${copySourceEvent?.id ?? "new"}`}
+              >
                 <input type="hidden" name="familySpaceId" value={family.id} />
+                {copySourceEvent ? (
+                  <div className="copy-source-banner">
+                    <Copy aria-hidden="true" size={16} />
+                    <span>コピー元: {copySourceEvent.title}</span>
+                  </div>
+                ) : null}
 
                 <div>
                   <label htmlFor="titlePreset">タイトル</label>
-                  <select id="titlePreset" name="titlePreset" defaultValue="">
+                  <select
+                    id="titlePreset"
+                    name="titlePreset"
+                    defaultValue={copySourceTitleIsPreset ? copySourceEvent?.title : ""}
+                  >
                     <option value="">選択してください</option>
                     {availableTitleOptions.map((option) => (
                       <option value={option} key={option}>
@@ -833,19 +962,31 @@ export function CalendarWorkspace({
 
                 <div>
                   <label htmlFor="titleCustom">自由記述</label>
-                  <input id="titleCustom" name="titleCustom" placeholder="例: 子どもの発表会" />
+                  <input
+                    id="titleCustom"
+                    name="titleCustom"
+                    defaultValue={copySourceEvent && !copySourceTitleIsPreset ? copySourceEvent.title : ""}
+                    placeholder="例: 子どもの発表会"
+                  />
                 </div>
 
-                <TitleLabelColorFields />
+                <TitleLabelColorFields defaultColor={copySourceEvent?.labelColor} />
 
                 <div className="two-cols">
                   <div>
                     <label htmlFor="date">開始日</label>
-                    <input id="date" name="date" type="date" defaultValue={selectedDayKey} required />
+                    <input
+                      id="date"
+                      name="date"
+                      type="date"
+                      value={eventFormDateKey}
+                      onChange={(event) => setEventFormDateKey(event.target.value)}
+                      required
+                    />
                   </div>
                   <div>
                     <label htmlFor="endDate">終了日</label>
-                    <input id="endDate" name="endDate" type="date" defaultValue={selectedDayKey} />
+                    <input id="endDate" name="endDate" type="date" defaultValue={copySourceDateKey} />
                   </div>
                 </div>
 
@@ -860,21 +1001,31 @@ export function CalendarWorkspace({
                     </select>
                   </div>
                   <label className="checkbox-row">
-                    <input name="isAllDay" type="checkbox" />
+                    <input name="isAllDay" type="checkbox" defaultChecked={copySourceEvent?.isAllDay ?? false} />
                     終日
                   </label>
                 </div>
 
-                <CopyDatesField inputId="copyDates" baseDate={selectedDayKey} />
+                <CopyDatesField inputId="copyDates" baseDate={eventFormDateKey} />
 
                 <div className="two-cols">
                   <div>
                     <label htmlFor="startTime">開始</label>
-                    <input id="startTime" name="startTime" type="time" defaultValue="09:00" />
+                    <input
+                      id="startTime"
+                      name="startTime"
+                      type="time"
+                      defaultValue={copySourceEvent ? formatTimeInput(asDate(copySourceEvent.startsAt)) : "09:00"}
+                    />
                   </div>
                   <div>
                     <label htmlFor="endTime">終了</label>
-                    <input id="endTime" name="endTime" type="time" defaultValue="10:00" />
+                    <input
+                      id="endTime"
+                      name="endTime"
+                      type="time"
+                      defaultValue={copySourceEvent ? formatTimeInput(asDate(copySourceEvent.endsAt)) : "10:00"}
+                    />
                   </div>
                 </div>
 
@@ -882,12 +1033,17 @@ export function CalendarWorkspace({
                   <legend>担当</legend>
                   <div className="assignee-options">
                     <label className="checkbox-row">
-                      <input name="assignAll" type="checkbox" />
+                      <input name="assignAll" type="checkbox" defaultChecked={copySourceAssignsEveryone} />
                       全員
                     </label>
                     {family.members.map((member) => (
                       <label className="checkbox-row" key={member.id}>
-                        <input name="assignedUserIds" type="checkbox" value={member.userId} />
+                        <input
+                          name="assignedUserIds"
+                          type="checkbox"
+                          value={member.userId}
+                          defaultChecked={copySourceAssignedUserIds.has(member.userId)}
+                        />
                         {member.user.displayName}
                       </label>
                     ))}
@@ -896,16 +1052,27 @@ export function CalendarWorkspace({
 
                 <div>
                   <label htmlFor="location">場所</label>
-                  <input id="location" name="location" placeholder="例: 駅前クリニック" />
+                  <input
+                    id="location"
+                    name="location"
+                    defaultValue={copySourceEvent?.location ?? ""}
+                    placeholder="例: 駅前クリニック"
+                  />
                 </div>
 
                 <div>
                   <label htmlFor="note">メモ</label>
-                  <textarea id="note" name="note" rows={3} placeholder="持ち物や連絡事項" />
+                  <textarea
+                    id="note"
+                    name="note"
+                    rows={3}
+                    defaultValue={copySourceEvent?.note ?? ""}
+                    placeholder="持ち物や連絡事項"
+                  />
                 </div>
 
                 <button className="primary-button" type="submit">
-                  予定を保存
+                  {copySourceEvent ? "コピーして保存" : "予定を保存"}
                 </button>
               </form>
             </div>

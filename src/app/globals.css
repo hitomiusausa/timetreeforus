@@ -796,6 +796,27 @@ textarea:focus {
   margin-top: 0;
 }
 
+.copy-source-banner {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid rgba(107, 230, 215, 0.76);
+  border-radius: 8px;
+  background: rgba(232, 255, 251, 0.78);
+  color: var(--foreground);
+  font-size: 0.86rem;
+  font-weight: 800;
+  padding: 0.45rem 0.65rem;
+}
+
+.copy-source-banner span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .event-card {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -970,14 +991,16 @@ textarea:focus {
 }
 
 .copy-date-shortcuts,
-.copy-date-chips {
+.copy-date-chips,
+.copy-date-calendar {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
 }
 
 .copy-date-shortcuts button,
-.copy-date-chip {
+.copy-date-chip,
+.copy-date-calendar button {
   display: inline-flex;
   min-height: 30px;
   align-items: center;
@@ -987,7 +1010,8 @@ textarea:focus {
   font-weight: 800;
 }
 
-.copy-date-shortcuts button {
+.copy-date-shortcuts button,
+.copy-date-calendar button {
   background: rgba(107, 230, 215, 0.14);
   color: var(--primary-strong);
   cursor: pointer;
@@ -998,12 +1022,32 @@ textarea:focus {
     transform 90ms ease;
 }
 
-.copy-date-shortcuts button:hover {
+.copy-date-calendar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.copy-date-calendar button {
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 0.45rem;
+}
+
+.copy-date-calendar button.is-selected {
+  border-color: var(--primary-strong);
+  background: var(--primary);
+  color: var(--foreground);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.48);
+}
+
+.copy-date-shortcuts button:hover,
+.copy-date-calendar button:hover {
   background: rgba(107, 230, 215, 0.24);
   box-shadow: 0 5px 12px rgba(31, 45, 43, 0.07);
 }
 
-.copy-date-shortcuts button:active {
+.copy-date-shortcuts button:active,
+.copy-date-calendar button:active {
   box-shadow: inset 0 2px 4px rgba(31, 45, 43, 0.12);
   transform: translateY(1px) scale(0.97);
 }
@@ -1051,6 +1095,7 @@ textarea:focus {
   .day-cell,
   .calendar-open-link,
   .copy-date-shortcuts button,
+  .copy-date-calendar button,
   .copy-date-chip button {
     transition: none;
   }
@@ -1064,6 +1109,7 @@ textarea:focus {
   .day-cell:active,
   .calendar-open-link:active,
   .copy-date-shortcuts button:active,
+  .copy-date-calendar button:active,
   .copy-date-chip button:active {
     transform: none;
   }
@@ -1245,5 +1291,9 @@ textarea:focus {
 
   .copy-date-row {
     grid-template-columns: 1fr;
+  }
+
+  .copy-date-calendar {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
