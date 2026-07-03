@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { CSSProperties, TouchEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Check,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -14,7 +15,6 @@ import {
   RefreshCw,
   LogOut,
   MapPin,
-  Plus,
   Settings,
   SquarePen,
   X,
@@ -240,6 +240,14 @@ function CopyDatesField({ inputId, baseDate }: { inputId: string; baseDate: stri
   const [draftDate, setDraftDate] = useState("");
   const [copyDates, setCopyDates] = useState<string[]>([]);
   const copyDateChoices = useMemo(() => buildCopyDateChoices(baseDate), [baseDate]);
+  const shortcutDates = useMemo(
+    () => [
+      { label: "翌日", value: addDateDays(baseDate, 1) },
+      { label: "1週間後", value: addDateDays(baseDate, 7) },
+      { label: "2週間後", value: addDateDays(baseDate, 14) },
+    ],
+    [baseDate],
+  );
 
   function addCopyDate(dateKey: string) {
     if (!dateKey || dateKey === baseDate) {
@@ -271,23 +279,36 @@ function CopyDatesField({ inputId, baseDate }: { inputId: string; baseDate: stri
   return (
     <div className="copy-dates-field">
       <label htmlFor={inputId}>別の日にもコピー</label>
+      <p className="field-hint">日付を選ぶとすぐ追加されます。選択済みの日付をもう一度押すと解除できます。</p>
       <div className="copy-date-row">
-        <input id={inputId} type="date" value={draftDate} onChange={(event) => setDraftDate(event.target.value)} />
-        <button className="secondary-button copy-date-add" type="button" onClick={() => addCopyDate(draftDate)}>
-          <Plus aria-hidden="true" size={16} />
-          追加
-        </button>
+        <input
+          id={inputId}
+          type="date"
+          value={draftDate}
+          aria-label="コピー先の日付を選択"
+          onChange={(event) => {
+            addCopyDate(event.target.value);
+            setDraftDate("");
+          }}
+        />
       </div>
       <div className="copy-date-shortcuts" aria-label="コピー先の候補日">
-        <button type="button" onClick={() => addCopyDate(addDateDays(baseDate, 1))}>
-          翌日
-        </button>
-        <button type="button" onClick={() => addCopyDate(addDateDays(baseDate, 7))}>
-          1週間後
-        </button>
-        <button type="button" onClick={() => addCopyDate(addDateDays(baseDate, 14))}>
-          2週間後
-        </button>
+        {shortcutDates.map((date) => {
+          const isSelected = copyDates.includes(date.value);
+
+          return (
+            <button
+              className={isSelected ? "is-selected" : ""}
+              type="button"
+              key={date.label}
+              aria-pressed={isSelected}
+              onClick={() => toggleCopyDate(date.value)}
+            >
+              {isSelected ? <Check aria-hidden="true" size={13} /> : null}
+              {date.label}
+            </button>
+          );
+        })}
       </div>
       <div className="copy-date-calendar" aria-label="近い日付からコピー先を選択">
         {copyDateChoices.map((dateKey) => {
@@ -301,23 +322,28 @@ function CopyDatesField({ inputId, baseDate }: { inputId: string; baseDate: stri
               aria-pressed={isSelected}
               onClick={() => toggleCopyDate(dateKey)}
             >
+              {isSelected ? <Check aria-hidden="true" size={13} /> : null}
               {formatCopyDateLabel(dateKey)}
             </button>
           );
         })}
       </div>
       {copyDates.length > 0 ? (
-        <div className="copy-date-chips" aria-label="コピー先の日付">
-          {copyDates.map((dateKey) => (
-            <span className="copy-date-chip" key={dateKey}>
-              <input type="hidden" name="copyDates" value={dateKey} />
-              {formatCopyDateLabel(dateKey)}
-              <button type="button" onClick={() => removeCopyDate(dateKey)} aria-label={`${dateKey}を外す`}>
-                <X aria-hidden="true" size={14} />
-              </button>
-            </span>
-          ))}
-        </div>
+        <>
+          <p className="copy-date-selected-title">コピー先: {copyDates.length}件</p>
+          <div className="copy-date-chips" aria-label="選択中のコピー先日付">
+            {copyDates.map((dateKey) => (
+              <span className="copy-date-chip" key={dateKey}>
+                <input type="hidden" name="copyDates" value={dateKey} />
+                {formatCopyDateLabel(dateKey)}
+                <button type="button" onClick={() => removeCopyDate(dateKey)} aria-label={`${dateKey}を解除`}>
+                  解除
+                  <X aria-hidden="true" size={13} />
+                </button>
+              </span>
+            ))}
+          </div>
+        </>
       ) : null}
     </div>
   );
@@ -1006,8 +1032,6 @@ export function CalendarWorkspace({
                   </label>
                 </div>
 
-                <CopyDatesField inputId="copyDates" baseDate={eventFormDateKey} />
-
                 <div className="two-cols">
                   <div>
                     <label htmlFor="startTime">開始</label>
@@ -1028,6 +1052,8 @@ export function CalendarWorkspace({
                     />
                   </div>
                 </div>
+
+                <CopyDatesField inputId="copyDates" baseDate={eventFormDateKey} />
 
                 <fieldset className="assignee-fieldset">
                   <legend>担当</legend>
@@ -1183,8 +1209,6 @@ export function CalendarWorkspace({
                   </label>
                 </div>
 
-                <CopyDatesField inputId="editCopyDates" baseDate={formatDateInput(asDate(editingEvent.startsAt))} />
-
                 <div className="two-cols">
                   <div>
                     <label htmlFor="editStartTime">開始</label>
@@ -1205,6 +1229,8 @@ export function CalendarWorkspace({
                     />
                   </div>
                 </div>
+
+                <CopyDatesField inputId="editCopyDates" baseDate={formatDateInput(asDate(editingEvent.startsAt))} />
 
                 <fieldset className="assignee-fieldset">
                   <legend>担当</legend>
