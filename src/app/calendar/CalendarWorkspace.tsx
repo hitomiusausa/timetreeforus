@@ -3,8 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { CSSProperties, TouchEvent } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Check,
   ChevronLeft,
@@ -44,7 +44,6 @@ import {
 import { titleLabelColors } from "@/lib/categories";
 
 type ModalMode = "day" | "event" | "edit" | null;
-type MonthTransition = "enter-next" | "enter-prev" | "exit-next" | "exit-prev" | null;
 
 type CalendarMembership = {
   id: string;
@@ -364,29 +363,6 @@ function updateCalendarUrl(familyId: string, month: string, day: string, modal: 
   window.history.replaceState(null, "", `/calendar?${params.toString()}`);
 }
 
-function getInitialMonthTransition(): MonthTransition {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const direction = window.sessionStorage.getItem("monthTransitionDirection");
-  window.sessionStorage.removeItem("monthTransitionDirection");
-
-  if (direction === "next") {
-    return "enter-next";
-  }
-
-  if (direction === "prev") {
-    return "enter-prev";
-  }
-
-  return null;
-}
-
-function prefersReducedMotion() {
-  return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
-
 export function CalendarWorkspace({
   family,
   memberships,
@@ -402,9 +378,6 @@ export function CalendarWorkspace({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [copySourceEvent, setCopySourceEvent] = useState<CalendarEvent | null>(null);
   const [eventFormDateKey, setEventFormDateKey] = useState(initialDay);
-  const [monthTransition, setMonthTransition] = useState<MonthTransition>(getInitialMonthTransition);
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
-  const monthTransitionTimeoutRef = useRef<number | null>(null);
   const monthDate = parseMonth(initialMonth);
   const monthKey = formatMonthInput(monthDate);
   const monthDays = buildMonthGrid(monthDate);
@@ -469,38 +442,10 @@ export function CalendarWorkspace({
   const showEventFormModal = modal === "event";
   const showEditEventModal = modal === "edit" && editingEvent;
   const canAutoRefresh = !modal && !settingsOpen;
-  const isMonthTransitioning = monthTransition?.startsWith("exit") ?? false;
-  const calendarPanelClassName = `calendar-panel${monthTransition ? ` month-transition-${monthTransition}` : ""}`;
 
   const refreshCalendar = useCallback(() => {
     router.refresh();
   }, [router]);
-
-  useEffect(() => {
-    if (!monthTransition?.startsWith("enter")) {
-      return;
-    }
-
-    monthTransitionTimeoutRef.current = window.setTimeout(() => {
-      setMonthTransition(null);
-      monthTransitionTimeoutRef.current = null;
-    }, 230);
-
-    return () => {
-      if (monthTransitionTimeoutRef.current) {
-        window.clearTimeout(monthTransitionTimeoutRef.current);
-        monthTransitionTimeoutRef.current = null;
-      }
-    };
-  }, [monthTransition]);
-
-  useEffect(() => {
-    return () => {
-      if (monthTransitionTimeoutRef.current) {
-        window.clearTimeout(monthTransitionTimeoutRef.current);
-      }
-    };
-  }, []);
 
   useEffect(() => {
     if (!canAutoRefresh) {
@@ -593,62 +538,6 @@ export function CalendarWorkspace({
     router.push(`/calendar?family=${family.id}&month=${thisMonth}&day=${todayKey}`);
   }
 
-  function navigateMonth(direction: -1 | 1) {
-    const destinationMonth = direction < 0 ? previousMonth : nextMonth;
-    setModal(null);
-    setEditingEventId(null);
-    setCopySourceEvent(null);
-
-    const destination = `/calendar?family=${family.id}&month=${destinationMonth}&day=${selectedDayKey}`;
-
-    if (prefersReducedMotion()) {
-      router.push(destination);
-      return;
-    }
-
-    if (isMonthTransitioning) {
-      return;
-    }
-
-    const directionLabel = direction > 0 ? "next" : "prev";
-    window.sessionStorage.setItem("monthTransitionDirection", directionLabel);
-    setMonthTransition(direction > 0 ? "exit-next" : "exit-prev");
-
-    monthTransitionTimeoutRef.current = window.setTimeout(() => {
-      router.push(destination);
-      monthTransitionTimeoutRef.current = null;
-    }, 170);
-  }
-
-  function handleCalendarTouchStart(event: TouchEvent<HTMLElement>) {
-    if (event.touches.length !== 1) {
-      touchStartRef.current = null;
-      return;
-    }
-
-    const touch = event.touches[0];
-    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
-  }
-
-  function handleCalendarTouchEnd(event: TouchEvent<HTMLElement>) {
-    const start = touchStartRef.current;
-    touchStartRef.current = null;
-
-    if (!start || event.changedTouches.length !== 1) {
-      return;
-    }
-
-    const touch = event.changedTouches[0];
-    const deltaX = touch.clientX - start.x;
-    const deltaY = touch.clientY - start.y;
-
-    if (Math.abs(deltaX) < 70 || Math.abs(deltaX) < Math.abs(deltaY) * 1.25) {
-      return;
-    }
-
-    navigateMonth(deltaX > 0 ? -1 : 1);
-  }
-
   return (
     <main className="app-shell">
       <header className="app-header">
@@ -678,11 +567,7 @@ export function CalendarWorkspace({
       </header>
 
       <section className="workspace">
-        <section
-          className={calendarPanelClassName}
-          onTouchStart={handleCalendarTouchStart}
-          onTouchEnd={handleCalendarTouchEnd}
-        >
+        <section className="calendar-panel">
           <div className="calendar-toolbar">
             <div>
               <p className="eyebrow">Month</p>
@@ -692,10 +577,6 @@ export function CalendarWorkspace({
               <Link
                 className="icon-button"
                 href={`/calendar?family=${family.id}&month=${previousMonth}&day=${selectedDayKey}`}
-                onClick={(event) => {
-                  event.preventDefault();
-                  navigateMonth(-1);
-                }}
                 aria-label="前の月"
                 title="前の月"
               >
@@ -716,10 +597,6 @@ export function CalendarWorkspace({
               <Link
                 className="icon-button"
                 href={`/calendar?family=${family.id}&month=${nextMonth}&day=${selectedDayKey}`}
-                onClick={(event) => {
-                  event.preventDefault();
-                  navigateMonth(1);
-                }}
                 aria-label="次の月"
                 title="次の月"
               >
