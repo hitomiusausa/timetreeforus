@@ -31,6 +31,10 @@ function normalizeModal(value?: string) {
 }
 
 type CalendarQueryRow = {
+  currentUser: {
+    id: string;
+    displayName: string;
+  } | null;
   family: {
     id: string;
     name: string;
@@ -146,6 +150,14 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
       ) AS family_space_id
     )
     SELECT
+      (
+        SELECT json_build_object(
+          'id', u.id,
+          'displayName', u.display_name
+        )
+        FROM "users" u
+        WHERE u.id = (SELECT user_id FROM current_session)
+      ) AS "currentUser",
       COALESCE(
         (
           SELECT json_agg(
@@ -305,6 +317,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
 
   return (
     <CalendarWorkspace
+      currentUserName={calendarData.currentUser?.displayName ?? ""}
       family={family}
       memberships={calendarData.memberships}
       initialMonth={formatMonthInput(monthDate)}

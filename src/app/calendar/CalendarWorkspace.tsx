@@ -115,6 +115,7 @@ type CalendarFamily = {
 };
 
 type CalendarWorkspaceProps = {
+  currentUserName: string;
   family: CalendarFamily;
   memberships: CalendarMembership[];
   initialMonth: string;
@@ -366,6 +367,7 @@ function updateCalendarUrl(familyId: string, month: string, day: string, modal: 
 }
 
 export function CalendarWorkspace({
+  currentUserName,
   family,
   memberships,
   initialMonth,
@@ -570,19 +572,20 @@ export function CalendarWorkspace({
 
   async function shareInviteMessage() {
     const inviteUrl = getInviteUrl();
-    const inviteText = `TimeTree For Usで家族のカレンダーを作ろう。${family.name}さんから招待されています。リンクをクリックしてさっそく参加してください。`;
+    const senderName = currentUserName || "家族";
+    const inviteText = `TimeTree For Usで家族のカレンダーを作ろう。${senderName}さんから「${family.name}」カレンダーに招待されています。リンクをクリックしてさっそく参加してください。`;
+    const shareText = `${inviteText}\n\n参加リンク:\n${inviteUrl}`;
 
     try {
       if (navigator.share) {
         await navigator.share({
           title: "TimeTree For Us",
-          text: inviteText,
-          url: inviteUrl,
+          text: shareText,
         });
         return;
       }
 
-      await navigator.clipboard.writeText(`${inviteText}\n${inviteUrl}`);
+      await navigator.clipboard.writeText(shareText);
       showInviteFeedback("招待メッセージをコピーしました");
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
