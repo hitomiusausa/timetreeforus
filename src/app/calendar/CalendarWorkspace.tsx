@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Clock,
   Copy,
+  FileDown,
   PencilLine,
   RefreshCw,
   LogOut,
@@ -376,6 +377,7 @@ export function CalendarWorkspace({
   const [modal, setModal] = useState<ModalMode>(initialModal);
   const [editingEventId, setEditingEventId] = useState(initialEventId ?? null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [copySourceEvent, setCopySourceEvent] = useState<CalendarEvent | null>(null);
   const [eventFormDateKey, setEventFormDateKey] = useState(initialDay);
   const monthDate = parseMonth(initialMonth);
@@ -441,7 +443,7 @@ export function CalendarWorkspace({
   const showSelectedDayModal = modal === "day";
   const showEventFormModal = modal === "event";
   const showEditEventModal = modal === "edit" && editingEvent;
-  const canAutoRefresh = !modal && !settingsOpen;
+  const canAutoRefresh = !modal && !settingsOpen && !exportOpen;
 
   const refreshCalendar = useCallback(() => {
     router.refresh();
@@ -588,6 +590,15 @@ export function CalendarWorkspace({
               <button
                 className="icon-button"
                 type="button"
+                onClick={() => setExportOpen(true)}
+                aria-label="予定を書き出し"
+                title="書き出し"
+              >
+                <FileDown aria-hidden="true" size={18} />
+              </button>
+              <button
+                className="icon-button"
+                type="button"
                 onClick={refreshCalendar}
                 aria-label="カレンダーを更新"
                 title="更新"
@@ -649,6 +660,62 @@ export function CalendarWorkspace({
             })}
           </div>
         </section>
+
+        {exportOpen ? (
+          <section className="selected-day-modal" aria-labelledby="export-title">
+            <button
+              className="selected-day-backdrop"
+              type="button"
+              onClick={() => setExportOpen(false)}
+              aria-label="書き出しを閉じる"
+            />
+            <div className="selected-day-dialog export-dialog" role="dialog" aria-modal="true">
+              <div className="selected-day-header">
+                <div>
+                  <p className="eyebrow">Export</p>
+                  <h2 id="export-title">予定を書き出し</h2>
+                  <p className="modal-date">{monthLabel}</p>
+                </div>
+                <button
+                  className="icon-button"
+                  type="button"
+                  onClick={() => setExportOpen(false)}
+                  aria-label="書き出しを閉じる"
+                  title="閉じる"
+                >
+                  <X aria-hidden="true" size={19} />
+                </button>
+              </div>
+
+              <div className="export-option-list">
+                <a
+                  className="export-option"
+                  href={`/api/exports/month?family=${family.id}&month=${monthKey}&format=pdf`}
+                  onClick={() => setExportOpen(false)}
+                >
+                  <span>PDF</span>
+                  <small>印刷や共有向け</small>
+                </a>
+                <a
+                  className="export-option"
+                  href={`/api/exports/month?family=${family.id}&month=${monthKey}&format=xlsx`}
+                  onClick={() => setExportOpen(false)}
+                >
+                  <span>Excel</span>
+                  <small>編集や保存向け</small>
+                </a>
+                <a
+                  className="export-option"
+                  href={`/api/exports/month?family=${family.id}&month=${monthKey}&format=txt`}
+                  onClick={() => setExportOpen(false)}
+                >
+                  <span>テキスト</span>
+                  <small>メッセージへの貼り付け向け</small>
+                </a>
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         {settingsOpen ? (
           <section className="selected-day-modal" aria-labelledby="settings-title">
