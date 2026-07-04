@@ -1,6 +1,8 @@
 import path from "path";
+import { readFile } from "fs/promises";
+import fontkit from "@pdf-lib/fontkit";
 import ExcelJS from "exceljs";
-import PDFDocument from "pdfkit";
+import { PDFDocument, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { endOfMonth, parseMonth } from "@/lib/calendar";
 import { ensureFamilyMember } from "@/lib/families";
 import { prisma } from "@/lib/prisma";
@@ -267,66 +269,127 @@ export async function buildMonthlyScheduleWorkbook(data: MonthlyScheduleExport) 
 }
 
 function getJapaneseFontPath() {
-  return path.join(
-    process.cwd(),
-    "node_modules",
-    "japanese-fonts",
-    "dist",
-    "Gen Jyuu Gothic L Monospace Normal",
-    "Gen Jyuu Gothic L Monospace Normal.ttf",
-  );
+  return path.join(process.cwd(), "public", "fonts", "gen-jyuu-gothic-normal.ttf");
 }
 
-function addPdfFooter(document: PDFKit.PDFDocument) {
-  const range = document.bufferedPageRange();
+function normalizePdfText(text: string) {
+  return text.replace(/\p{Extended_Pictographic}/gu, "").replace(/[\u200d\ufe0f]/g, "").trim();
+}
 
-  for (let index = 0; index < range.count; index += 1) {
-    document.switchToPage(index);
-    document
-      .fontSize(8)
-      .fillColor("#556b68")
-      .text(`${index + 1} / ${range.count}`, 48, document.page.height - 42, {
-        align: "right",
-        width: document.page.width - 96,
-      });
+const pageWidth = 595.28;
+const pageHeight = 841.89;
+const pageMargin = 48;
+const foreground = rgb(0.122, 0.176, 0.169);
+const muted = rgb(0.333, 0.42, 0.408);
+const line = rgb(0.737, 0.933, 0.91);
+const soft = rgb(0.91, 1, 0.984);
+const primary = rgb(0.42, 0.902, 0.843);
+
+function wrapText(text: string, font: PDFFont, fontSize: number, maxWidth: number) {
+  const lines: string[] = [];
+  let currentLine = "";
+
+  for (const character of normalizePdfText(text)) {
+    const nextLine = `${currentLine}${character}`;
+    if (font.widthOfTextAtSize(nextLine, fontSize) <= maxWidth || currentLine.length === 0) {
+      currentLine = nextLine;
+    } else {
+      lines.push(currentLine);
+      currentLine = character;
+    }
   }
+
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+
+  return lines;
+}
+
+function drawTextLines(
+  page: PDFPage,
+  text: string,
+  font: PDFFont,
+  fontSize: number,
+  x: number,
+  y: number,
+  maxWidth: number,
+  maxLines: number,
+  color = foreground,
+) {
+  const lines = wrapText(text, font, fontSize, maxWidth).slice(0, maxLines);
+
+  lines.forEach((lineText, index) => {
+    page.drawText(lineText, {
+      x,
+      y: y - index * (fontSize + 4),
+      size: fontSize,
+      font,
+      color,
+    });
+  });
+}
+
+function addPdfHeader(page: PDFPage, font: PDFFont, data: MonthlyScheduleExport) {
+  page.drawRectangle({ x: 0, y: pageHeight - 92, width: pageWidth, height: 92, color: soft });
+  page.drawText(normalizePdfText(`${data.family.name} ${data.monthLabel}`), {
+    x: pageMargin,
+    y: pageHeight - 55,
+    size: 19,
+    font,
+    color: foreground,
+  });
+  page.drawText("予定リスト", {
+    x: pageMargin,
+    y: pageHeight - 78,
+    size: 12,
+    font,
+    color: muted,
+  });
+}
+
+function addPdfFooter(page: PDFPage, font: PDFFont, pageNumber: number, pageCount: number) {
+  page.drawText(`${pageNumber} / ${pageCount}`, {
+    x: pageWidth - 90,
+    y: 30,
+    size: 8,
+    font,
+    color: muted,
+  });
 }
 
 export async function buildMonthlySchedulePdf(data: MonthlyScheduleExport) {
-  const chunks: Buffer[] = [];
-  const document = new PDFDocument({
-    size: "A4",
-    margin: 48,
-    bufferPages: true,
-    info: {
-      Title: `${data.family.name} ${data.monthLabel} 予定リスト`,
-      Author: "TimeTreeForUs",
-    },
-  });
+  const document = await PDFDocument.create();
+  document.registerFontkit(fontkit);
+  document.setTitle(`${data.family.name} ${data.monthLabel} 予定リスト`);
+  document.setAuthor("TimeTreeForUs");
 
-  document.on("data", (chunk: Buffer) => chunks.push(chunk));
-  const finished = new Promise<Buffer>((resolve, reject) => {
-    document.on("end", () => resolve(Buffer.concat(chunks)));
-    document.on("error", reject);
-  });
+  const fontBytes = await readFile(getJapaneseFontPath());
+  const font = await document.embedFont(fontBytes, { subset: true });
+  let page = document.addPage([pageWidth, pageHeight]);
+  addPdfHeader(page, font, data);
+  let y = pageHeight - 124;
 
-  document.registerFont("Japanese", getJapaneseFontPath());
-  document.font("Japanese");
+  function addPage() {
+    page = document.addPage([pageWidth, pageHeight]);
+    addPdfHeader(page, font, data);
+    y = pageHeight - 124;
+  }
 
-  document
-    .rect(0, 0, document.page.width, 92)
-    .fill("#e8fffb")
-    .fillColor("#1f2d2b")
-    .fontSize(19)
-    .text(`${data.family.name} ${data.monthLabel}`, 48, 36, { continued: false })
-    .fontSize(12)
-    .fillColor("#556b68")
-    .text("予定リスト", 48, 62);
-
-  document.moveDown(2.2);
+  function ensureSpace(height: number) {
+    if (y - height < 64) {
+      addPage();
+    }
+  }
 
   if (data.events.length === 0) {
-    document.fontSize(12).fillColor("#556b68").text("予定はありません。");
+    page.drawText("予定はありません。", {
+      x: pageMargin,
+      y,
+      size: 12,
+      font,
+      color: muted,
+    });
   } else {
     let currentDate = "";
 
@@ -335,46 +398,57 @@ export async function buildMonthlySchedulePdf(data: MonthlyScheduleExport) {
 
       if (dateLabel !== currentDate) {
         currentDate = dateLabel;
-        if (document.y > document.page.height - 120) {
-          document.addPage();
-        }
-        document.moveDown(0.7);
-        document.roundedRect(48, document.y, document.page.width - 96, 24, 6).fill("#6be6d7");
-        document.fillColor("#1f2d2b").fontSize(12).text(dateLabel, 58, document.y + 6);
-        document.y += 28;
+        ensureSpace(36);
+        page.drawRectangle({ x: pageMargin, y: y - 20, width: pageWidth - pageMargin * 2, height: 24, color: primary });
+        page.drawText(dateLabel, {
+          x: pageMargin + 10,
+          y: y - 13,
+          size: 12,
+          font,
+          color: foreground,
+        });
+        y -= 38;
       }
-
-      if (document.y > document.page.height - 120) {
-        document.addPage();
-      }
-
-      const top = document.y;
-      document.roundedRect(48, top, document.page.width - 96, 58, 6).strokeColor("#bceee8").stroke();
-      document
-        .fillColor("#1f2d2b")
-        .fontSize(11)
-        .text(event.title, 60, top + 8, { width: 300 })
-        .fillColor("#556b68")
-        .fontSize(9)
-        .text(formatTimeRange(event), 390, top + 8, { width: 120, align: "right" });
 
       const meta = [
         event.assignees ? `担当: ${event.assignees}` : "",
         event.location ? `場所: ${event.location}` : "",
         event.note ? `メモ: ${event.note}` : "",
       ].filter(Boolean);
+      const metaText = meta.join(" / ");
+      const titleLines = wrapText(event.title, font, 11, 308).slice(0, 2);
+      const metaLines = metaText ? wrapText(metaText, font, 9, pageWidth - pageMargin * 2 - 24).slice(0, 2) : [];
+      const cardHeight = Math.max(58, 24 + titleLines.length * 15 + metaLines.length * 13);
 
-      document
-        .fillColor("#556b68")
-        .fontSize(9)
-        .text(meta.join(" / "), 60, top + 29, { width: document.page.width - 120, height: 20, ellipsis: true });
+      ensureSpace(cardHeight + 10);
+      page.drawRectangle({
+        x: pageMargin,
+        y: y - cardHeight + 8,
+        width: pageWidth - pageMargin * 2,
+        height: cardHeight,
+        borderColor: line,
+        borderWidth: 1,
+      });
 
-      document.y = top + 68;
+      drawTextLines(page, event.title, font, 11, pageMargin + 12, y - 8, 308, 2);
+      page.drawText(formatTimeRange(event), {
+        x: pageWidth - pageMargin - 124,
+        y: y - 8,
+        size: 9,
+        font,
+        color: muted,
+      });
+
+      if (metaText) {
+        drawTextLines(page, metaText, font, 9, pageMargin + 12, y - 31, pageWidth - pageMargin * 2 - 24, 2, muted);
+      }
+
+      y -= cardHeight + 10;
     }
   }
 
-  addPdfFooter(document);
-  document.end();
+  const pages = document.getPages();
+  pages.forEach((pdfPage, index) => addPdfFooter(pdfPage, font, index + 1, pages.length));
 
-  return finished;
+  return Buffer.from(await document.save());
 }
