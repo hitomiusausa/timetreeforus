@@ -716,22 +716,40 @@ textarea:focus {
 
 .settings-content {
   display: grid;
-  gap: 1rem;
+  gap: 0.8rem;
 }
 
 .settings-section {
-  border-top: 1px solid var(--line);
-  padding-top: 1rem;
-}
-
-.settings-section:first-child {
-  border-top: 0;
-  padding-top: 0;
+  border: 1px solid rgba(188, 238, 232, 0.92);
+  border-radius: 8px;
+  background: rgba(232, 255, 251, 0.48);
+  padding: 0.85rem;
 }
 
 .settings-section h3 {
   font-size: 1rem;
-  margin: 0 0 0.7rem;
+  margin: 0;
+}
+
+.settings-section h4 {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+  margin: 0 0 0.45rem;
+}
+
+.settings-section-head {
+  display: grid;
+  gap: 0.18rem;
+  margin-bottom: 0.7rem;
+}
+
+.settings-section-head p {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.45;
+  margin: 0;
 }
 
 .calendar-add-form,
@@ -752,6 +770,10 @@ textarea:focus {
 
 .calendar-management-list {
   gap: 0.8rem;
+}
+
+.current-calendar-item {
+  background: rgba(255, 255, 255, 0.88);
 }
 
 .calendar-management-item {
@@ -796,6 +818,12 @@ textarea:focus {
 .title-preset-item span {
   font-weight: 800;
   overflow-wrap: anywhere;
+}
+
+.invite-block {
+  border-top: 1px solid rgba(188, 238, 232, 0.8);
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
 }
 
 .calendar-management-head small {

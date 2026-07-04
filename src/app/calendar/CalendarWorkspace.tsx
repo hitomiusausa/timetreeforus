@@ -445,6 +445,7 @@ export function CalendarWorkspace({
   const showEventFormModal = modal === "event";
   const showEditEventModal = modal === "edit" && editingEvent;
   const canAutoRefresh = !modal && !settingsOpen && !exportOpen && !logoutConfirmOpen;
+  const currentMembership = memberships.find((membership) => membership.familySpaceId === family.id);
 
   const refreshCalendar = useCallback(() => {
     router.refresh();
@@ -789,9 +790,39 @@ export function CalendarWorkspace({
 
               <div className="settings-content">
                 <section className="settings-section">
+                  <div className="settings-section-head">
+                    <h3>表示中のカレンダー</h3>
+                    <p>今開いているカレンダーの名前を変更できます。</p>
+                  </div>
+                  <article className="calendar-management-item current-calendar-item">
+                    <div className="calendar-management-head">
+                      <div>
+                        <p>{currentMembership?.familySpace.name ?? family.name}</p>
+                        <small>表示中</small>
+                      </div>
+                    </div>
+                    <form action={updateCalendarNameAction} className="calendar-name-form">
+                      <input type="hidden" name="familySpaceId" value={family.id} />
+                      <input type="hidden" name="currentFamilySpaceId" value={family.id} />
+                      <label htmlFor="currentCalendarName">カレンダー名</label>
+                      <div className="inline-form-row">
+                        <input id="currentCalendarName" name="name" defaultValue={family.name} required />
+                        <button className="secondary-button" type="submit">
+                          保存
+                        </button>
+                      </div>
+                    </form>
+                  </article>
+                </section>
+
+                <section className="settings-section">
+                  <div className="settings-section-head">
+                    <h3>家族</h3>
+                    <p>このカレンダーを共有しているメンバーと招待コードです。</p>
+                  </div>
                   <div className="section-title">
                     <Users aria-hidden="true" size={18} />
-                    <h3>家族</h3>
+                    <h4>メンバー</h4>
                   </div>
                   <div className="member-list">
                     {family.members.map((member) => (
@@ -802,15 +833,18 @@ export function CalendarWorkspace({
                       </div>
                     ))}
                   </div>
+
+                  <div className="invite-block">
+                    <h4>招待コード</h4>
+                    <div className="invite-code">{family.inviteCode}</div>
+                  </div>
                 </section>
 
                 <section className="settings-section">
-                  <h3>招待コード</h3>
-                  <div className="invite-code">{family.inviteCode}</div>
-                </section>
-
-                <section className="settings-section">
-                  <h3>タイトル候補</h3>
+                  <div className="settings-section-head">
+                    <h3>タイトル候補</h3>
+                    <p>予定作成時のタイトル候補を追加できます。</p>
+                  </div>
                   <form action={createTitlePresetAction} className="title-preset-form">
                     <input type="hidden" name="familySpaceId" value={family.id} />
                     <div>
@@ -841,7 +875,10 @@ export function CalendarWorkspace({
                 </section>
 
                 <section className="settings-section">
-                  <h3>カレンダー</h3>
+                  <div className="settings-section-head">
+                    <h3>カレンダー追加・切り替え</h3>
+                    <p>別のカレンダーを作成したり、開くカレンダーを切り替えられます。</p>
+                  </div>
                   <form action={createCalendarAction} className="calendar-add-form">
                     <input type="hidden" name="currentFamilySpaceId" value={family.id} />
                     <div>
@@ -869,23 +906,6 @@ export function CalendarWorkspace({
                             開く
                           </Link>
                         </div>
-
-                        <form action={updateCalendarNameAction} className="calendar-name-form">
-                          <input type="hidden" name="familySpaceId" value={membership.familySpaceId} />
-                          <input type="hidden" name="currentFamilySpaceId" value={family.id} />
-                          <label htmlFor={`calendarName-${membership.id}`}>名前を変更</label>
-                          <div className="inline-form-row">
-                            <input
-                              id={`calendarName-${membership.id}`}
-                              name="name"
-                              defaultValue={membership.familySpace.name}
-                              required
-                            />
-                            <button className="secondary-button" type="submit">
-                              保存
-                            </button>
-                          </div>
-                        </form>
 
                         <details className="calendar-delete-details">
                           <summary>このカレンダーを削除</summary>
