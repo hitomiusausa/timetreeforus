@@ -198,6 +198,21 @@ export async function updateEventAction(formData: FormData) {
 
   await ensureFamilyMember(user.id, familySpaceId);
 
+  const existingEvent = await prisma.event.findFirst({
+    where: {
+      id: eventId,
+      familySpaceId,
+      deletedAt: null,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!existingEvent) {
+    redirect(`/calendar?family=${familySpaceId}&month=${date.slice(0, 7)}&day=${date}&modal=day`);
+  }
+
   const startsAt = isAllDay ? buildDateTime(date, "00:00") : buildDateTime(date, startTime);
   const endsAt = isAllDay ? buildDateTime(date, "23:59") : buildDateTime(date, endTime);
   const occurrenceDates = buildOccurrenceDates(date, endDate, repeatRule);
