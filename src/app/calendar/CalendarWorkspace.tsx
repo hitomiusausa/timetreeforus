@@ -16,6 +16,7 @@ import {
   RefreshCw,
   LogOut,
   MapPin,
+  Send,
   Settings,
   SquarePen,
   X,
@@ -379,6 +380,7 @@ export function CalendarWorkspace({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+  const [inviteFeedback, setInviteFeedback] = useState<string | null>(null);
   const [copySourceEvent, setCopySourceEvent] = useState<CalendarEvent | null>(null);
   const [eventFormDateKey, setEventFormDateKey] = useState(initialDay);
   const monthDate = parseMonth(initialMonth);
@@ -540,6 +542,55 @@ export function CalendarWorkspace({
     }
 
     router.push(`/calendar?family=${family.id}&month=${thisMonth}&day=${todayKey}`);
+  }
+
+  function getInviteUrl() {
+    const invitePath = `/join?invite=${encodeURIComponent(family.inviteCode)}`;
+
+    if (typeof window === "undefined") {
+      return invitePath;
+    }
+
+    return `${window.location.origin}${invitePath}`;
+  }
+
+  function showInviteFeedback(message: string) {
+    setInviteFeedback(message);
+    window.setTimeout(() => setInviteFeedback(null), 2200);
+  }
+
+  async function copyInviteCode() {
+    try {
+      await navigator.clipboard.writeText(family.inviteCode);
+      showInviteFeedback("招待コードをコピーしました");
+    } catch {
+      showInviteFeedback("コピーできませんでした");
+    }
+  }
+
+  async function shareInviteMessage() {
+    const inviteUrl = getInviteUrl();
+    const inviteText = `TimeTree For Usで家族のカレンダーを作ろう。${family.name}さんから招待されています。リンクをクリックしてさっそく参加してください。`;
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: "TimeTree For Us",
+          text: inviteText,
+          url: inviteUrl,
+        });
+        return;
+      }
+
+      await navigator.clipboard.writeText(`${inviteText}\n${inviteUrl}`);
+      showInviteFeedback("招待メッセージをコピーしました");
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return;
+      }
+
+      showInviteFeedback("共有できませんでした");
+    }
   }
 
   return (
@@ -792,7 +843,7 @@ export function CalendarWorkspace({
                 <section className="settings-section">
                   <div className="settings-section-head">
                     <h3>表示中のカレンダー</h3>
-                    <p>今開いているカレンダーの名前を変更できます。</p>
+                    <p>名前の変更、メンバー確認、招待コードの共有ができます。</p>
                   </div>
                   <article className="calendar-management-item current-calendar-item">
                     <div className="calendar-management-head">
@@ -812,32 +863,44 @@ export function CalendarWorkspace({
                         </button>
                       </div>
                     </form>
-                  </article>
-                </section>
 
-                <section className="settings-section">
-                  <div className="settings-section-head">
-                    <h3>家族</h3>
-                    <p>このカレンダーを共有しているメンバーと招待コードです。</p>
-                  </div>
-                  <div className="section-title">
-                    <Users aria-hidden="true" size={18} />
-                    <h4>メンバー</h4>
-                  </div>
-                  <div className="member-list">
-                    {family.members.map((member) => (
-                      <div className="member-row" key={member.id}>
-                        <span className="member-dot" style={{ backgroundColor: member.color }} />
-                        <span>{member.user.displayName}</span>
-                        {member.role === "admin" ? <small>管理者</small> : null}
+                    <div className="calendar-family-block">
+                      <div className="section-title">
+                        <Users aria-hidden="true" size={18} />
+                        <h4>家族</h4>
                       </div>
-                    ))}
-                  </div>
+                      <div className="member-list">
+                        {family.members.map((member) => (
+                          <div className="member-row" key={member.id}>
+                            <span className="member-dot" style={{ backgroundColor: member.color }} />
+                            <span>{member.user.displayName}</span>
+                            {member.role === "admin" ? <small>管理者</small> : null}
+                          </div>
+                        ))}
+                      </div>
 
-                  <div className="invite-block">
-                    <h4>招待コード</h4>
-                    <div className="invite-code">{family.inviteCode}</div>
-                  </div>
+                      <div className="invite-block">
+                        <h4>招待コード</h4>
+                        <div className="invite-code-row">
+                          <div className="invite-code">{family.inviteCode}</div>
+                          <button
+                            className="mini-icon-button invite-copy-button"
+                            type="button"
+                            onClick={copyInviteCode}
+                            aria-label="招待コードをコピー"
+                            title="招待コードをコピー"
+                          >
+                            <Copy aria-hidden="true" size={16} />
+                          </button>
+                        </div>
+                        <button className="secondary-button invite-share-button" type="button" onClick={shareInviteMessage}>
+                          <Send aria-hidden="true" size={16} />
+                          メッセージで送る
+                        </button>
+                        {inviteFeedback ? <p className="invite-feedback">{inviteFeedback}</p> : null}
+                      </div>
+                    </div>
+                  </article>
                 </section>
 
                 <section className="settings-section">

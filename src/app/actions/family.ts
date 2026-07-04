@@ -2,11 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { ensureFamilyMember, makeInviteCode } from "@/lib/families";
+import { ensureFamilyMember, joinFamilyByInviteCode, makeInviteCode, memberColors } from "@/lib/families";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 
-const memberColors = ["#52DE3F", "#6BE69A", "#6BE6D7", "#6BB7E6", "#96A0ED", "#E66B79"];
 const defaultCategories = [
   { name: "家族", color: "#6BE6D7", sortOrder: 1 },
   { name: "仕事", color: "#6BB7E6", sortOrder: 2 },
@@ -251,28 +250,10 @@ export async function joinFamilyAction(formData: FormData) {
     redirect("/setup?error=invite_code");
   }
 
-  const family = await prisma.familySpace.findUnique({
-    where: { inviteCode },
-    include: {
-      members: true,
-    },
-  });
+  const family = await joinFamilyByInviteCode(user.id, inviteCode);
 
   if (!family) {
     redirect("/setup?error=invite_not_found");
-  }
-
-  const existing = family.members.find((member) => member.userId === user.id);
-
-  if (!existing) {
-    await prisma.familyMember.create({
-      data: {
-        familySpaceId: family.id,
-        userId: user.id,
-        role: "member",
-        color: memberColors[family.members.length % memberColors.length],
-      },
-    });
   }
 
   redirect(`/calendar?family=${family.id}`);

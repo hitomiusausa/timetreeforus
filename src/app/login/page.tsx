@@ -9,7 +9,7 @@ const errorMessages: Record<string, string> = {
 };
 
 type LoginPageProps = {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; invite?: string }>;
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
@@ -20,7 +20,9 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   }
 
   const params = await searchParams;
+  const inviteCode = params.invite?.trim().toUpperCase() ?? "";
   const error = params.error ? errorMessages[params.error] : null;
+  const registerHref = inviteCode ? `/register?invite=${encodeURIComponent(inviteCode)}` : "/register";
 
   return (
     <main className="auth-shell">
@@ -36,6 +38,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         </div>
 
         <form action={loginAction} className="form-stack">
+          {inviteCode ? <input type="hidden" name="inviteCode" value={inviteCode} /> : null}
+
           <div>
             <label htmlFor="loginId">ログインID</label>
             <input id="loginId" name="loginId" autoComplete="username" required />
@@ -60,7 +64,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         </form>
 
         <p className="auth-link">
-          はじめて使う場合は <Link href="/register">新規登録</Link>
+          はじめて使う場合は <Link href={registerHref}>新規登録</Link>
         </p>
       </section>
     </main>

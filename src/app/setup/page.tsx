@@ -10,7 +10,7 @@ const errorMessages: Record<string, string> = {
 };
 
 type SetupPageProps = {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; invite?: string }>;
 };
 
 export default async function SetupPage({ searchParams }: SetupPageProps) {
@@ -21,6 +21,7 @@ export default async function SetupPage({ searchParams }: SetupPageProps) {
   }
 
   const params = await searchParams;
+  const inviteCode = params.invite?.trim().toUpperCase() ?? "";
   const error = params.error ? errorMessages[params.error] : null;
 
   return (
@@ -58,6 +59,7 @@ export default async function SetupPage({ searchParams }: SetupPageProps) {
                 name="inviteCode"
                 placeholder="例: AB12CD34"
                 autoCapitalize="characters"
+                defaultValue={inviteCode}
                 required
               />
             </div>
@@ -70,4 +72,3 @@ export default async function SetupPage({ searchParams }: SetupPageProps) {
     </main>
   );
 }
-

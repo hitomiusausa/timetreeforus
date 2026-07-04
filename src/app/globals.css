@@ -396,6 +396,41 @@ textarea:focus {
   text-align: center;
 }
 
+.calendar-family-block {
+  border-top: 1px solid rgba(188, 238, 232, 0.8);
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+}
+
+.invite-code-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.invite-copy-button {
+  width: 44px;
+  height: auto;
+  min-height: 44px;
+}
+
+.invite-share-button {
+  width: 100%;
+  gap: 0.45rem;
+  margin-top: 0.55rem;
+}
+
+.invite-feedback {
+  color: var(--primary-strong);
+  font-size: 0.78rem;
+  font-weight: 800;
+  margin: 0.45rem 0 0;
+  text-align: center;
+}
+
 .family-switcher a {
   border: 1px solid var(--line);
   border-radius: 8px;
