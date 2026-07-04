@@ -276,86 +276,86 @@ function normalizePdfText(text: string) {
   return text.replace(/\p{Extended_Pictographic}/gu, "").replace(/[\u200d\ufe0f]/g, "").trim();
 }
 
-const pageWidth = 595.28;
-const pageHeight = 841.89;
-const pageMargin = 48;
+const pageWidth = 841.89;
+const pageHeight = 595.28;
+const pageMargin = 28;
 const foreground = rgb(0.122, 0.176, 0.169);
 const muted = rgb(0.333, 0.42, 0.408);
 const line = rgb(0.737, 0.933, 0.91);
 const soft = rgb(0.91, 1, 0.984);
 const primary = rgb(0.42, 0.902, 0.843);
 
-function wrapText(text: string, font: PDFFont, fontSize: number, maxWidth: number) {
-  const lines: string[] = [];
-  let currentLine = "";
+function truncateText(text: string, font: PDFFont, fontSize: number, maxWidth: number) {
+  const normalizedText = normalizePdfText(text);
 
-  for (const character of normalizePdfText(text)) {
-    const nextLine = `${currentLine}${character}`;
-    if (font.widthOfTextAtSize(nextLine, fontSize) <= maxWidth || currentLine.length === 0) {
-      currentLine = nextLine;
-    } else {
-      lines.push(currentLine);
-      currentLine = character;
+  if (font.widthOfTextAtSize(normalizedText, fontSize) <= maxWidth) {
+    return normalizedText;
+  }
+
+  let truncated = "";
+  const suffix = "...";
+
+  for (const character of normalizedText) {
+    const nextText = `${truncated}${character}${suffix}`;
+    if (font.widthOfTextAtSize(nextText, fontSize) > maxWidth) {
+      break;
     }
+    truncated += character;
   }
 
-  if (currentLine) {
-    lines.push(currentLine);
-  }
-
-  return lines;
+  return `${truncated}${suffix}`;
 }
 
-function drawTextLines(
-  page: PDFPage,
-  text: string,
-  font: PDFFont,
-  fontSize: number,
-  x: number,
-  y: number,
-  maxWidth: number,
-  maxLines: number,
-  color = foreground,
-) {
-  const lines = wrapText(text, font, fontSize, maxWidth).slice(0, maxLines);
-
-  lines.forEach((lineText, index) => {
-    page.drawText(lineText, {
-      x,
-      y: y - index * (fontSize + 4),
-      size: fontSize,
-      font,
-      color,
-    });
+function drawCellText(page: PDFPage, text: string, font: PDFFont, fontSize: number, x: number, y: number, width: number, color = foreground) {
+  page.drawText(truncateText(text, font, fontSize, width), {
+    x,
+    y,
+    size: fontSize,
+    font,
+    color,
   });
 }
 
 function addPdfHeader(page: PDFPage, font: PDFFont, data: MonthlyScheduleExport) {
-  page.drawRectangle({ x: 0, y: pageHeight - 92, width: pageWidth, height: 92, color: soft });
+  page.drawRectangle({ x: 0, y: pageHeight - 58, width: pageWidth, height: 58, color: soft });
   page.drawText(normalizePdfText(`${data.family.name} ${data.monthLabel}`), {
     x: pageMargin,
-    y: pageHeight - 55,
-    size: 19,
+    y: pageHeight - 35,
+    size: 17,
     font,
     color: foreground,
   });
   page.drawText("予定リスト", {
     x: pageMargin,
-    y: pageHeight - 78,
-    size: 12,
+    y: pageHeight - 52,
+    size: 9,
     font,
     color: muted,
   });
 }
 
-function addPdfFooter(page: PDFPage, font: PDFFont, pageNumber: number, pageCount: number) {
-  page.drawText(`${pageNumber} / ${pageCount}`, {
-    x: pageWidth - 90,
-    y: 30,
-    size: 8,
+function addPdfFooter(page: PDFPage, font: PDFFont) {
+  page.drawText("1 / 1", {
+    x: pageWidth - 54,
+    y: 16,
+    size: 7,
     font,
     color: muted,
   });
+}
+
+function drawTableHeader(page: PDFPage, font: PDFFont, y: number, columns: Array<{ label: string; x: number; width: number }>) {
+  page.drawRectangle({ x: pageMargin, y: y - 16, width: pageWidth - pageMargin * 2, height: 18, color: primary });
+
+  for (const column of columns) {
+    page.drawText(column.label, {
+      x: column.x + 4,
+      y: y - 10,
+      size: 7.5,
+      font,
+      color: foreground,
+    });
+  }
 }
 
 export async function buildMonthlySchedulePdf(data: MonthlyScheduleExport) {
@@ -366,89 +366,93 @@ export async function buildMonthlySchedulePdf(data: MonthlyScheduleExport) {
 
   const fontBytes = await readFile(getJapaneseFontPath());
   const font = await document.embedFont(fontBytes, { subset: true });
-  let page = document.addPage([pageWidth, pageHeight]);
+  const page = document.addPage([pageWidth, pageHeight]);
   addPdfHeader(page, font, data);
-  let y = pageHeight - 124;
+  const tableTop = pageHeight - 84;
+  const tableBottom = 34;
+  const tableHeaderHeight = 18;
+  const availableRowHeight = tableTop - tableHeaderHeight - tableBottom;
+  const rowCount = Math.max(data.events.length, 1);
+  const rowHeight = Math.max(7.2, Math.min(18, availableRowHeight / rowCount));
+  const fontSize = rowHeight < 8.5 ? 5.2 : rowHeight < 10 ? 6 : rowHeight < 12 ? 6.8 : 7.4;
+  const lineYAdjust = Math.max(2.2, (rowHeight - fontSize) / 2);
+  const columns = [
+    { key: "date", label: "日付", x: pageMargin, width: 72 },
+    { key: "time", label: "時間", x: pageMargin + 72, width: 72 },
+    { key: "title", label: "タイトル", x: pageMargin + 144, width: 150 },
+    { key: "assignees", label: "担当", x: pageMargin + 294, width: 98 },
+    { key: "location", label: "場所", x: pageMargin + 392, width: 132 },
+    { key: "note", label: "メモ", x: pageMargin + 524, width: 216 },
+    { key: "creator", label: "入力", x: pageMargin + 740, width: 46 },
+  ];
 
-  function addPage() {
-    page = document.addPage([pageWidth, pageHeight]);
-    addPdfHeader(page, font, data);
-    y = pageHeight - 124;
-  }
-
-  function ensureSpace(height: number) {
-    if (y - height < 64) {
-      addPage();
-    }
-  }
+  drawTableHeader(page, font, tableTop, columns);
 
   if (data.events.length === 0) {
     page.drawText("予定はありません。", {
       x: pageMargin,
-      y,
+      y: tableTop - tableHeaderHeight - 20,
       size: 12,
       font,
       color: muted,
     });
   } else {
     let currentDate = "";
+    let y = tableTop - tableHeaderHeight;
 
-    for (const event of data.events) {
+    data.events.forEach((event, index) => {
       const dateLabel = formatDate(event.startsAt);
+      const dateValue = dateLabel !== currentDate ? dateLabel : "";
+      currentDate = dateLabel;
+      const rowY = y - rowHeight;
 
-      if (dateLabel !== currentDate) {
-        currentDate = dateLabel;
-        ensureSpace(36);
-        page.drawRectangle({ x: pageMargin, y: y - 20, width: pageWidth - pageMargin * 2, height: 24, color: primary });
-        page.drawText(dateLabel, {
-          x: pageMargin + 10,
-          y: y - 13,
-          size: 12,
-          font,
-          color: foreground,
+      if (index % 2 === 1) {
+        page.drawRectangle({
+          x: pageMargin,
+          y: rowY,
+          width: pageWidth - pageMargin * 2,
+          height: rowHeight,
+          color: rgb(0.975, 0.996, 0.992),
         });
-        y -= 38;
       }
 
-      const meta = [
-        event.assignees ? `担当: ${event.assignees}` : "",
-        event.location ? `場所: ${event.location}` : "",
-        event.note ? `メモ: ${event.note}` : "",
-      ].filter(Boolean);
-      const metaText = meta.join(" / ");
-      const titleLines = wrapText(event.title, font, 11, 308).slice(0, 2);
-      const metaLines = metaText ? wrapText(metaText, font, 9, pageWidth - pageMargin * 2 - 24).slice(0, 2) : [];
-      const cardHeight = Math.max(58, 24 + titleLines.length * 15 + metaLines.length * 13);
-
-      ensureSpace(cardHeight + 10);
       page.drawRectangle({
         x: pageMargin,
-        y: y - cardHeight + 8,
+        y: rowY,
         width: pageWidth - pageMargin * 2,
-        height: cardHeight,
+        height: rowHeight,
         borderColor: line,
         borderWidth: 1,
       });
 
-      drawTextLines(page, event.title, font, 11, pageMargin + 12, y - 8, 308, 2);
-      page.drawText(formatTimeRange(event), {
-        x: pageWidth - pageMargin - 124,
-        y: y - 8,
-        size: 9,
-        font,
-        color: muted,
-      });
+      const values = {
+        date: dateValue,
+        time: formatTimeRange(event),
+        title: event.title,
+        assignees: event.assignees,
+        location: event.location ?? "",
+        note: event.note ?? "",
+        creator: event.creator,
+      };
 
-      if (metaText) {
-        drawTextLines(page, metaText, font, 9, pageMargin + 12, y - 31, pageWidth - pageMargin * 2 - 24, 2, muted);
+      for (const column of columns) {
+        drawCellText(
+          page,
+          values[column.key as keyof typeof values],
+          font,
+          fontSize,
+          column.x + 4,
+          rowY + lineYAdjust,
+          column.width - 8,
+          column.key === "date" ? muted : foreground,
+        );
       }
 
-      y -= cardHeight + 10;
-    }
+      y -= rowHeight;
+    });
   }
 
-  const pages = document.getPages();
-  pages.forEach((pdfPage, index) => addPdfFooter(pdfPage, font, index + 1, pages.length));
+  addPdfFooter(page, font);
 
   return Buffer.from(await document.save());
 }
