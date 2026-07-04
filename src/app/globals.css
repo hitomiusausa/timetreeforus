@@ -652,6 +652,28 @@ textarea:focus {
   width: min(100%, 460px);
 }
 
+.confirm-dialog {
+  width: min(100%, 440px);
+}
+
+.confirm-message {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin: 0.45rem 0 0;
+}
+
+.confirm-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+}
+
+.confirm-actions form,
+.confirm-actions button {
+  width: 100%;
+}
+
 .export-option-list {
   display: grid;
   gap: 0.65rem;
@@ -1347,5 +1369,9 @@ textarea:focus {
 
   .copy-date-calendar {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .confirm-actions {
+    grid-template-columns: 1fr;
   }
 }

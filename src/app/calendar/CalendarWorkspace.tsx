@@ -378,6 +378,7 @@ export function CalendarWorkspace({
   const [editingEventId, setEditingEventId] = useState(initialEventId ?? null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [copySourceEvent, setCopySourceEvent] = useState<CalendarEvent | null>(null);
   const [eventFormDateKey, setEventFormDateKey] = useState(initialDay);
   const monthDate = parseMonth(initialMonth);
@@ -443,7 +444,7 @@ export function CalendarWorkspace({
   const showSelectedDayModal = modal === "day";
   const showEventFormModal = modal === "event";
   const showEditEventModal = modal === "edit" && editingEvent;
-  const canAutoRefresh = !modal && !settingsOpen && !exportOpen;
+  const canAutoRefresh = !modal && !settingsOpen && !exportOpen && !logoutConfirmOpen;
 
   const refreshCalendar = useCallback(() => {
     router.refresh();
@@ -560,11 +561,15 @@ export function CalendarWorkspace({
           >
             <Settings aria-hidden="true" size={19} />
           </button>
-          <form action={logoutAction}>
-            <button className="icon-button" type="submit" aria-label="ログアウト" title="ログアウト">
-              <LogOut aria-hidden="true" size={19} />
-            </button>
-          </form>
+          <button
+            className="icon-button"
+            type="button"
+            onClick={() => setLogoutConfirmOpen(true)}
+            aria-label="ログアウト"
+            title="ログアウト"
+          >
+            <LogOut aria-hidden="true" size={19} />
+          </button>
         </div>
       </header>
 
@@ -660,6 +665,46 @@ export function CalendarWorkspace({
             })}
           </div>
         </section>
+
+        {logoutConfirmOpen ? (
+          <section className="selected-day-modal" aria-labelledby="logout-title">
+            <button
+              className="selected-day-backdrop"
+              type="button"
+              onClick={() => setLogoutConfirmOpen(false)}
+              aria-label="ログアウト確認を閉じる"
+            />
+            <div className="selected-day-dialog confirm-dialog" role="dialog" aria-modal="true">
+              <div className="selected-day-header">
+                <div>
+                  <p className="eyebrow">Confirm</p>
+                  <h2 id="logout-title">ログアウトしますか？</h2>
+                  <p className="confirm-message">もう一度ログインすれば、同じカレンダーを続きから使えます。</p>
+                </div>
+                <button
+                  className="icon-button"
+                  type="button"
+                  onClick={() => setLogoutConfirmOpen(false)}
+                  aria-label="ログアウト確認を閉じる"
+                  title="閉じる"
+                >
+                  <X aria-hidden="true" size={19} />
+                </button>
+              </div>
+
+              <div className="confirm-actions">
+                <button className="secondary-button" type="button" onClick={() => setLogoutConfirmOpen(false)}>
+                  キャンセル
+                </button>
+                <form action={logoutAction}>
+                  <button className="danger-button" type="submit">
+                    ログアウトする
+                  </button>
+                </form>
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         {exportOpen ? (
           <section className="selected-day-modal" aria-labelledby="export-title">
