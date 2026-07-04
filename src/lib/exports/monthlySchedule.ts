@@ -52,6 +52,13 @@ const timeFormatter = new Intl.DateTimeFormat("ja-JP", {
   minute: "2-digit",
 });
 
+const exportedDateFormatter = new Intl.DateTimeFormat("ja-JP", {
+  timeZone,
+  year: "numeric",
+  month: "numeric",
+  day: "numeric",
+});
+
 function formatDate(date: Date) {
   return japaneseDateFormatter.format(date);
 }
@@ -317,18 +324,27 @@ function drawCellText(page: PDFPage, text: string, font: PDFFont, fontSize: numb
 }
 
 function addPdfHeader(page: PDFPage, font: PDFFont, data: MonthlyScheduleExport) {
-  page.drawRectangle({ x: 0, y: pageHeight - 58, width: pageWidth, height: 58, color: soft });
+  page.drawRectangle({ x: 0, y: pageHeight - 52, width: pageWidth, height: 52, color: soft });
   page.drawText(normalizePdfText(`${data.family.name} ${data.monthLabel}`), {
     x: pageMargin,
-    y: pageHeight - 35,
+    y: pageHeight - 31,
     size: 17,
     font,
     color: foreground,
   });
   page.drawText("予定リスト", {
     x: pageMargin,
-    y: pageHeight - 52,
+    y: pageHeight - 47,
     size: 9,
+    font,
+    color: muted,
+  });
+
+  const exportedDate = `書き出し日: ${exportedDateFormatter.format(new Date())}`;
+  page.drawText(exportedDate, {
+    x: pageWidth - pageMargin - font.widthOfTextAtSize(exportedDate, 7),
+    y: pageHeight - 31,
+    size: 7,
     font,
     color: muted,
   });
@@ -368,8 +384,8 @@ export async function buildMonthlySchedulePdf(data: MonthlyScheduleExport) {
   const font = await document.embedFont(fontBytes, { subset: true });
   const page = document.addPage([pageWidth, pageHeight]);
   addPdfHeader(page, font, data);
-  const tableTop = pageHeight - 84;
-  const tableBottom = 34;
+  const tableTop = pageHeight - 68;
+  const tableBottom = 26;
   const tableHeaderHeight = 18;
   const availableRowHeight = tableTop - tableHeaderHeight - tableBottom;
   const rowCount = Math.max(data.events.length, 1);
