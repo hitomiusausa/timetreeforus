@@ -445,21 +445,39 @@ textarea:focus {
 }
 
 .calendar-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  display: grid;
+  gap: 0.75rem;
   margin-bottom: 1rem;
 }
 
 .calendar-toolbar h2 {
   font-size: clamp(1.3rem, 3vw, 1.8rem);
+  white-space: nowrap;
+}
+
+.calendar-heading-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
 .toolbar-actions {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.month-navigation {
+  display: grid;
+  grid-template-columns: 44px minmax(140px, 320px) 44px;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.month-navigation .today-button {
+  width: 100%;
 }
 
 .icon-button,
@@ -1506,13 +1524,11 @@ textarea:focus {
     font-size: 0.68rem;
   }
 
-  .app-header,
-  .calendar-toolbar {
+  .app-header {
     align-items: flex-start;
   }
 
   .calendar-toolbar {
-    flex-direction: column;
     gap: 0.55rem;
     margin-bottom: 0.65rem;
   }
@@ -1522,12 +1538,15 @@ textarea:focus {
   }
 
   .toolbar-actions {
-    width: 100%;
     gap: 0.4rem;
   }
 
-  .today-button {
-    flex: 1;
+  .month-navigation {
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    gap: 0.4rem;
+  }
+
+  .month-navigation .today-button {
     min-height: 38px;
     padding: 0.45rem 0.7rem;
   }

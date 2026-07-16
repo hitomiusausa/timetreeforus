@@ -777,11 +777,43 @@ export function CalendarWorkspace({
       <section className="workspace">
         <section className="calendar-panel">
           <div className="calendar-toolbar">
-            <div>
-              <p className="eyebrow">Month</p>
-              <h2>{monthLabel}</h2>
+            <div className="calendar-heading-row">
+              <div>
+                <p className="eyebrow">Month</p>
+                <h2>{monthLabel}</h2>
+              </div>
+              <div className="toolbar-actions" role="group" aria-label="カレンダーの補助操作">
+                <button
+                  className="icon-button"
+                  type="button"
+                  onClick={() => setAgendaOpen(true)}
+                  aria-label="予定を検索"
+                  title="予定を検索"
+                >
+                  <Search aria-hidden="true" size={18} />
+                </button>
+                <button
+                  className="icon-button"
+                  type="button"
+                  onClick={() => setExportOpen(true)}
+                  aria-label="予定を書き出し"
+                  title="書き出し"
+                >
+                  <FileDown aria-hidden="true" size={18} />
+                </button>
+                <button
+                  className="icon-button"
+                  type="button"
+                  onClick={refreshCalendar}
+                  aria-label="カレンダーを更新"
+                  title="更新"
+                >
+                  <RefreshCw aria-hidden="true" size={18} />
+                </button>
+              </div>
             </div>
-            <div className="toolbar-actions">
+
+            <nav className="month-navigation" aria-label="月の移動">
               <Link
                 className="icon-button"
                 href={`/calendar?family=${family.id}&month=${previousMonth}&day=${selectedDayKey}`}
@@ -793,33 +825,6 @@ export function CalendarWorkspace({
               <button className="today-button" type="button" onClick={selectToday}>
                 今日
               </button>
-              <button
-                className="icon-button"
-                type="button"
-                onClick={() => setAgendaOpen(true)}
-                aria-label="予定を検索"
-                title="予定を検索"
-              >
-                <Search aria-hidden="true" size={18} />
-              </button>
-              <button
-                className="icon-button"
-                type="button"
-                onClick={() => setExportOpen(true)}
-                aria-label="予定を書き出し"
-                title="書き出し"
-              >
-                <FileDown aria-hidden="true" size={18} />
-              </button>
-              <button
-                className="icon-button"
-                type="button"
-                onClick={refreshCalendar}
-                aria-label="カレンダーを更新"
-                title="更新"
-              >
-                <RefreshCw aria-hidden="true" size={18} />
-              </button>
               <Link
                 className="icon-button"
                 href={`/calendar?family=${family.id}&month=${nextMonth}&day=${selectedDayKey}`}
@@ -828,7 +833,7 @@ export function CalendarWorkspace({
               >
                 <ChevronRight aria-hidden="true" size={19} />
               </Link>
-            </div>
+            </nav>
           </div>
 
           <div className="weekday-grid">
