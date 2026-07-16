@@ -572,12 +572,54 @@ textarea:focus {
   font-weight: 800;
 }
 
-.selected-day .day-number {
+.today-day .day-number {
   background: var(--today);
   color: #fff;
   width: 24px;
   height: 24px;
   border-radius: 999px;
+}
+
+.selected-day:not(.today-day) .day-number {
+  box-shadow: inset 0 0 0 2px var(--today);
+  color: var(--primary-strong);
+}
+
+.delete-event-confirm {
+  display: grid;
+  gap: 0.9rem;
+  border: 1px solid rgba(230, 107, 121, 0.35);
+  border-radius: 10px;
+  background: #fff8f8;
+  margin-top: 1rem;
+  padding: 1rem;
+}
+
+.delete-event-confirm h3 {
+  font-size: 1rem;
+}
+
+.delete-event-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.delete-event-actions form,
+.delete-event-actions button {
+  flex: 1 1 auto;
+}
+
+.danger-button-strong {
+  background: #913640;
+}
+
+.recurrence-edit-note {
+  border-radius: 8px;
+  background: rgba(107, 230, 215, 0.14);
+  color: var(--muted);
+  font-size: 0.82rem;
+  padding: 0.7rem;
 }
 
 .day-events {
@@ -752,6 +794,155 @@ textarea:focus {
 .settings-content {
   display: grid;
   gap: 0.8rem;
+}
+
+.deleted-event-list,
+.archived-calendar-settings,
+.archived-calendar-list,
+.activity-list,
+.agenda-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.activity-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.6rem;
+  border-bottom: 1px solid var(--line);
+  padding: 0.45rem 0;
+}
+
+.activity-item:last-child {
+  border-bottom: 0;
+}
+
+.activity-item > span:last-child {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.activity-item small {
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.activity-action {
+  border-radius: 999px;
+  background: rgba(107, 183, 230, 0.16);
+  color: #245d7f;
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 0.2rem 0.45rem;
+}
+
+.activity-deleted {
+  background: rgba(230, 107, 121, 0.15);
+  color: #913640;
+}
+
+.activity-restored {
+  background: rgba(107, 230, 154, 0.18);
+  color: #246b46;
+}
+
+.deleted-event-item,
+.archived-calendar-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+  padding: 0.65rem;
+}
+
+.deleted-event-item > div:first-child {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.deleted-event-item small,
+.archived-calendar-item small {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.deleted-event-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.deleted-event-actions button,
+.archived-calendar-item button {
+  min-height: 36px;
+  padding: 0.4rem 0.65rem;
+}
+
+.archived-calendar-settings {
+  border-top: 1px solid var(--line);
+  margin-top: 0.8rem;
+  padding-top: 0.8rem;
+}
+
+.archived-calendar-card {
+  margin-top: 1rem;
+}
+
+.agenda-search {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 0 0.7rem;
+}
+
+.agenda-search input {
+  border: 0;
+  box-shadow: none;
+  padding-inline: 0;
+}
+
+.agenda-list {
+  margin-top: 0.8rem;
+}
+
+.agenda-item {
+  display: grid;
+  grid-template-columns: 6px minmax(0, 1fr);
+  gap: 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.8);
+  color: inherit;
+  cursor: pointer;
+  padding: 0.65rem;
+  text-align: left;
+}
+
+.agenda-item:hover {
+  background: var(--soft);
+}
+
+.agenda-item > span:last-child {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.agenda-item small {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.agenda-color {
+  border-radius: 999px;
 }
 
 .settings-section {
@@ -1412,7 +1603,7 @@ textarea:focus {
     font-size: 0.78rem;
   }
 
-  .selected-day .day-number {
+  .today-day .day-number {
     width: 20px;
     height: 20px;
     border-radius: 999px;
@@ -1432,6 +1623,15 @@ textarea:focus {
 
   .copy-date-calendar {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .deleted-event-item,
+  .archived-calendar-item {
+    grid-template-columns: 1fr;
+  }
+
+  .deleted-event-actions {
+    justify-content: stretch;
   }
 
   .confirm-actions {

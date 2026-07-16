@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/lib/session";
 
 const errorMessages: Record<string, string> = {
   invalid: "IDまたはパスワードが違います。",
+  locked: "ログイン試行が多すぎます。15分ほど待ってから再度お試しください。",
 };
 
 type LoginPageProps = {
@@ -16,7 +17,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const user = await getCurrentUser();
 
   if (user) {
-    redirect(user.memberships.length > 0 ? "/calendar" : "/setup");
+    redirect(user.memberships.some((membership) => membership.familySpace.archivedAt === null) ? "/calendar" : "/setup");
   }
 
   const params = await searchParams;

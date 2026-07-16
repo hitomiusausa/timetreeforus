@@ -31,29 +31,30 @@ export type MonthlyScheduleExport = {
   events: ScheduleExportEvent[];
 };
 
-const timeZone = "Asia/Tokyo";
+const calendarTimeZone = "UTC";
+const localTimeZone = "Asia/Tokyo";
 
 const japaneseDateFormatter = new Intl.DateTimeFormat("ja-JP", {
-  timeZone,
+  timeZone: calendarTimeZone,
   month: "numeric",
   day: "numeric",
   weekday: "short",
 });
 
 const japaneseMonthFormatter = new Intl.DateTimeFormat("ja-JP", {
-  timeZone,
+  timeZone: calendarTimeZone,
   year: "numeric",
   month: "long",
 });
 
 const timeFormatter = new Intl.DateTimeFormat("ja-JP", {
-  timeZone,
+  timeZone: calendarTimeZone,
   hour: "2-digit",
   minute: "2-digit",
 });
 
 const exportedDateFormatter = new Intl.DateTimeFormat("ja-JP", {
-  timeZone,
+  timeZone: localTimeZone,
   year: "numeric",
   month: "numeric",
   day: "numeric",

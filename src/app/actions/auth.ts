@@ -16,6 +16,36 @@ function readRequired(formData: FormData, key: string) {
   return value;
 }
 
+const loginWindowMs = 15 * 60 * 1000;
+const maxLoginFailures = 5;
+
+async function isLoginLocked(loginId: string) {
+  const throttle = await prisma.loginThrottle.findUnique({ where: { loginId } });
+  return Boolean(throttle?.lockedUntil && throttle.lockedUntil > new Date());
+}
+
+async function recordFailedLogin(loginId: string) {
+  const now = new Date();
+  const existing = await prisma.loginThrottle.findUnique({ where: { loginId } });
+  const windowExpired = !existing || existing.firstFailedAt.getTime() < now.getTime() - loginWindowMs;
+  const failedCount = windowExpired ? 1 : existing.failedCount + 1;
+
+  await prisma.loginThrottle.upsert({
+    where: { loginId },
+    create: {
+      loginId,
+      failedCount,
+      firstFailedAt: now,
+      lockedUntil: failedCount >= maxLoginFailures ? new Date(now.getTime() + loginWindowMs) : null,
+    },
+    update: {
+      failedCount,
+      firstFailedAt: windowExpired ? now : existing.firstFailedAt,
+      lockedUntil: failedCount >= maxLoginFailures ? new Date(now.getTime() + loginWindowMs) : null,
+    },
+  });
+}
+
 export async function registerAction(formData: FormData) {
   const displayName = readRequired(formData, "displayName");
   const loginId = readRequired(formData, "loginId");
@@ -69,19 +99,27 @@ export async function loginAction(formData: FormData) {
   const inviteCode = String(formData.get("inviteCode") ?? "").trim().toUpperCase();
   const inviteQuery = inviteCode ? `&invite=${encodeURIComponent(inviteCode)}` : "";
 
+  if (await isLoginLocked(loginId)) {
+    redirect(`/login?error=locked${inviteQuery}`);
+  }
+
   const user = await prisma.user.findUnique({
     where: { loginId },
   });
 
   if (!user) {
+    await recordFailedLogin(loginId);
     redirect(`/login?error=invalid${inviteQuery}`);
   }
 
   const ok = await bcrypt.compare(password, user.passwordHash);
 
   if (!ok) {
+    await recordFailedLogin(loginId);
     redirect(`/login?error=invalid${inviteQuery}`);
   }
+
+  await prisma.loginThrottle.deleteMany({ where: { loginId } });
 
   await createSession(user.id);
 
@@ -96,7 +134,7 @@ export async function loginAction(formData: FormData) {
   }
 
   const membership = await prisma.familyMember.findFirst({
-    where: { userId: user.id },
+    where: { userId: user.id, familySpace: { archivedAt: null } },
     orderBy: { createdAt: "asc" },
   });
 

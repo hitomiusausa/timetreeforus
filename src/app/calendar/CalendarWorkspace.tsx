@@ -17,6 +17,7 @@ import {
   LogOut,
   MapPin,
   Send,
+  Search,
   Settings,
   SquarePen,
   X,
@@ -24,12 +25,14 @@ import {
   Users,
 } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
-import { createEventAction, deleteEventAction, updateEventAction } from "@/app/actions/events";
+import { createEventAction, deleteEventAction, restoreEventAction, updateEventAction } from "@/app/actions/events";
 import {
+  archiveCalendarAction,
   createCalendarAction,
   createTitlePresetAction,
-  deleteCalendarAction,
   deleteTitlePresetAction,
+  regenerateInviteCodeAction,
+  restoreCalendarAction,
   updateCalendarNameAction,
 } from "@/app/actions/family";
 import {
@@ -40,20 +43,55 @@ import {
   formatMonthInput,
   formatTime,
   formatTimeInput,
+  getTodayDateKey,
   parseDate,
   parseMonth,
 } from "@/lib/calendar";
 import { titleLabelColors } from "@/lib/categories";
 
 type ModalMode = "day" | "event" | "edit" | null;
+type EditScope = "occurrence" | "future" | "series";
 
 type CalendarMembership = {
   id: string;
   familySpaceId: string;
+  role: string;
   familySpace: {
     id: string;
     name: string;
   };
+};
+
+type ArchivedCalendarMembership = CalendarMembership;
+
+type RecentlyDeletedEvent = {
+  id: string;
+  title: string;
+  startsAt: string;
+  deletedAt: string;
+  recurrenceSeriesId: string | null;
+  recurrenceRule: string | null;
+  deletedCount: number;
+};
+
+type UpcomingEvent = {
+  id: string;
+  title: string;
+  startsAt: string;
+  endsAt: string;
+  isAllDay: boolean;
+  location: string | null;
+  note: string | null;
+  labelColor: string | null;
+};
+
+type RecentActivity = {
+  id: string;
+  action: string;
+  eventTitle: string;
+  scope: string;
+  createdAt: string;
+  userName: string;
 };
 
 type CalendarMember = {
@@ -89,6 +127,8 @@ type CalendarEvent = {
   location: string | null;
   note: string | null;
   assignedTo: string | null;
+  recurrenceSeriesId: string | null;
+  recurrenceRule: string | null;
   category: CalendarCategory | null;
   assignee: {
     id: string;
@@ -112,12 +152,16 @@ type CalendarFamily = {
   categories: CalendarCategory[];
   titlePresets: CalendarTitlePreset[];
   events: CalendarEvent[];
+  recentlyDeletedEvents: RecentlyDeletedEvent[];
+  upcomingEvents: UpcomingEvent[];
+  recentActivity: RecentActivity[];
 };
 
 type CalendarWorkspaceProps = {
   currentUserName: string;
   family: CalendarFamily;
   memberships: CalendarMembership[];
+  archivedMemberships: ArchivedCalendarMembership[];
   initialMonth: string;
   initialDay: string;
   initialModal: ModalMode;
@@ -125,6 +169,18 @@ type CalendarWorkspaceProps = {
 };
 
 const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
+let hasOpenedCalendarInThisDocument = false;
+const repeatRuleLabels: Record<string, string> = {
+  daily: "毎日",
+  weekly: "毎週",
+  monthly: "毎月",
+};
+const activityLabels: Record<string, string> = {
+  created: "作成",
+  updated: "編集",
+  deleted: "削除",
+  restored: "復元",
+};
 const titleOptions = [
   "デート",
   "旅行",
@@ -352,6 +408,55 @@ function CopyDatesField({ inputId, baseDate }: { inputId: string; baseDate: stri
   );
 }
 
+function getDefaultRepeatEndDate(dateKey: string) {
+  const date = parseDate(dateKey);
+  const targetYear = date.getFullYear() + 1;
+  const targetMonth = date.getMonth();
+  const targetDay = Math.min(date.getDate(), new Date(targetYear, targetMonth + 1, 0).getDate());
+  return formatDateInput(new Date(targetYear, targetMonth, targetDay));
+}
+
+function RepeatFields({ baseDate }: { baseDate: string }) {
+  const [repeatRule, setRepeatRule] = useState("none");
+  const endDateId = "endDate";
+  const repeatRuleId = "repeatRule";
+
+  return (
+    <div className="two-cols recurrence-fields">
+      <div>
+        <label htmlFor={repeatRuleId}>繰り返し</label>
+        <select
+          id={repeatRuleId}
+          name="repeatRule"
+          value={repeatRule}
+          onChange={(event) => setRepeatRule(event.target.value)}
+        >
+          <option value="none">なし</option>
+          <option value="daily">毎日</option>
+          <option value="weekly">毎週</option>
+          <option value="monthly">毎月</option>
+        </select>
+      </div>
+      {repeatRule !== "none" ? (
+        <div>
+          <label htmlFor={endDateId}>繰り返し終了日</label>
+          <input
+            id={endDateId}
+            name="endDate"
+            type="date"
+            min={baseDate}
+            max={getDefaultRepeatEndDate(baseDate)}
+            defaultValue={getDefaultRepeatEndDate(baseDate)}
+            key={`${endDateId}-${baseDate}`}
+            required
+          />
+          <p className="field-hint">初期値は1年後です。終了日を含めて予定を作成します。</p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function updateCalendarUrl(familyId: string, month: string, day: string, modal: ModalMode, eventId?: string) {
   const params = new URLSearchParams({ family: familyId, month, day });
 
@@ -370,6 +475,7 @@ export function CalendarWorkspace({
   currentUserName,
   family,
   memberships,
+  archivedMemberships,
   initialMonth,
   initialDay,
   initialModal,
@@ -382,6 +488,10 @@ export function CalendarWorkspace({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+  const [agendaOpen, setAgendaOpen] = useState(false);
+  const [agendaQuery, setAgendaQuery] = useState("");
+  const [deletingEvent, setDeletingEvent] = useState<CalendarEvent | null>(null);
+  const [editScope, setEditScope] = useState<EditScope>("occurrence");
   const [inviteFeedback, setInviteFeedback] = useState<string | null>(null);
   const [copySourceEvent, setCopySourceEvent] = useState<CalendarEvent | null>(null);
   const [eventFormDateKey, setEventFormDateKey] = useState(initialDay);
@@ -392,9 +502,8 @@ export function CalendarWorkspace({
   const selectedDate = parseDate(selectedDayKey);
   const previousMonth = formatMonthInput(addMonths(monthDate, -1));
   const nextMonth = formatMonthInput(addMonths(monthDate, 1));
-  const today = new Date();
-  const todayKey = formatDateInput(today);
-  const thisMonth = formatMonthInput(today);
+  const todayKey = getTodayDateKey();
+  const thisMonth = todayKey.slice(0, 7);
   const monthLabel = new Intl.DateTimeFormat("ja-JP", {
     year: "numeric",
     month: "long",
@@ -422,7 +531,6 @@ export function CalendarWorkspace({
     return Array.from(options);
   }, [family.titlePresets]);
   const editingEvent = editingEventId ? family.events.find((event) => event.id === editingEventId) : null;
-  const copySourceDateKey = copySourceEvent ? formatDateInput(asDate(copySourceEvent.startsAt)) : eventFormDateKey;
   const copySourceTitleIsPreset = copySourceEvent ? availableTitleOptions.includes(copySourceEvent.title) : false;
   const copySourceAssignedUserIds = new Set(
     copySourceEvent
@@ -448,8 +556,31 @@ export function CalendarWorkspace({
   const showSelectedDayModal = modal === "day";
   const showEventFormModal = modal === "event";
   const showEditEventModal = modal === "edit" && editingEvent;
-  const canAutoRefresh = !modal && !settingsOpen && !exportOpen && !logoutConfirmOpen;
+  const canAutoRefresh = !modal && !settingsOpen && !exportOpen && !logoutConfirmOpen && !agendaOpen;
   const currentMembership = memberships.find((membership) => membership.familySpaceId === family.id);
+  const filteredUpcomingEvents = useMemo(() => {
+    const query = agendaQuery.trim().toLocaleLowerCase("ja");
+
+    if (!query) {
+      return family.upcomingEvents;
+    }
+
+    return family.upcomingEvents.filter((event) =>
+      [event.title, event.location, event.note].filter(Boolean).some((value) => value!.toLocaleLowerCase("ja").includes(query)),
+    );
+  }, [agendaQuery, family.upcomingEvents]);
+
+  useEffect(() => {
+    if (hasOpenedCalendarInThisDocument) {
+      return;
+    }
+
+    hasOpenedCalendarInThisDocument = true;
+
+    if (!initialModal && (initialMonth !== thisMonth || initialDay !== todayKey)) {
+      router.replace(`/calendar?family=${family.id}&month=${thisMonth}&day=${todayKey}`);
+    }
+  }, [family.id, initialDay, initialModal, initialMonth, router, thisMonth, todayKey]);
 
   const refreshCalendar = useCallback(() => {
     router.refresh();
@@ -474,6 +605,15 @@ export function CalendarWorkspace({
 
     function refreshWhenActive() {
       if (document.visibilityState === "visible") {
+        const activeTodayKey = getTodayDateKey();
+
+        if (activeTodayKey !== todayKey) {
+          router.replace(
+            `/calendar?family=${family.id}&month=${activeTodayKey.slice(0, 7)}&day=${activeTodayKey}`,
+          );
+          return;
+        }
+
         refreshCalendar();
       }
     }
@@ -487,7 +627,7 @@ export function CalendarWorkspace({
       window.removeEventListener("pageshow", refreshWhenActive);
       document.removeEventListener("visibilitychange", refreshWhenActive);
     };
-  }, [canAutoRefresh, refreshCalendar]);
+  }, [canAutoRefresh, family.id, refreshCalendar, router, todayKey]);
 
   function openDay(key: string) {
     const nextModal = (eventsByDay.get(key)?.length ?? 0) > 0 ? "day" : "event";
@@ -495,6 +635,7 @@ export function CalendarWorkspace({
     setEventFormDateKey(key);
     setEditingEventId(null);
     setCopySourceEvent(null);
+    setDeletingEvent(null);
     setModal(nextModal);
     updateCalendarUrl(family.id, monthKey, key, nextModal);
   }
@@ -503,12 +644,14 @@ export function CalendarWorkspace({
     setModal(null);
     setEditingEventId(null);
     setCopySourceEvent(null);
+    setDeletingEvent(null);
     updateCalendarUrl(family.id, monthKey, selectedDayKey, null);
   }
 
   function openAddForm() {
     setEditingEventId(null);
     setCopySourceEvent(null);
+    setDeletingEvent(null);
     setEventFormDateKey(selectedDayKey);
     setModal("event");
     updateCalendarUrl(family.id, monthKey, selectedDayKey, "event");
@@ -520,6 +663,7 @@ export function CalendarWorkspace({
     setEventFormDateKey(eventDateKey);
     setEditingEventId(null);
     setCopySourceEvent(event);
+    setDeletingEvent(null);
     setModal("event");
     updateCalendarUrl(family.id, monthKey, eventDateKey, "event");
   }
@@ -527,6 +671,8 @@ export function CalendarWorkspace({
   function openEditForm(eventId: string) {
     setEditingEventId(eventId);
     setCopySourceEvent(null);
+    setDeletingEvent(null);
+    setEditScope("occurrence");
     setModal("edit");
     updateCalendarUrl(family.id, monthKey, selectedDayKey, "edit", eventId);
   }
@@ -650,6 +796,15 @@ export function CalendarWorkspace({
               <button
                 className="icon-button"
                 type="button"
+                onClick={() => setAgendaOpen(true)}
+                aria-label="予定を検索"
+                title="予定を検索"
+              >
+                <Search aria-hidden="true" size={18} />
+              </button>
+              <button
+                className="icon-button"
+                type="button"
                 onClick={() => setExportOpen(true)}
                 aria-label="予定を書き出し"
                 title="書き出し"
@@ -688,15 +843,17 @@ export function CalendarWorkspace({
               const dayEvents = eventsByDay.get(key) ?? [];
               const isOutsideMonth = day.getMonth() !== currentMonth;
               const isSelected = key === selectedDayKey;
+              const isToday = key === todayKey;
 
               return (
                 <button
-                  className={`day-cell ${isOutsideMonth ? "muted-day" : ""} ${
+                  className={`day-cell ${isOutsideMonth ? "muted-day" : ""} ${isToday ? "today-day" : ""} ${
                     isSelected ? "selected-day" : ""
                   }`}
                   key={key}
                   onClick={() => openDay(key)}
                   type="button"
+                  aria-current={isToday ? "date" : undefined}
                 >
                   <span className="day-number">{day.getDate()}</span>
                   <div className="day-events">
@@ -817,6 +974,69 @@ export function CalendarWorkspace({
           </section>
         ) : null}
 
+        {agendaOpen ? (
+          <section className="selected-day-modal" aria-labelledby="agenda-title">
+            <button
+              className="selected-day-backdrop"
+              type="button"
+              onClick={() => setAgendaOpen(false)}
+              aria-label="予定検索を閉じる"
+            />
+            <div className="selected-day-dialog agenda-dialog" role="dialog" aria-modal="true">
+              <div className="selected-day-header">
+                <div>
+                  <p className="eyebrow">Upcoming</p>
+                  <h2 id="agenda-title">今後の予定</h2>
+                  <p className="field-hint">今日から1年以内の予定を検索できます。</p>
+                </div>
+                <button className="icon-button" type="button" onClick={() => setAgendaOpen(false)} aria-label="予定検索を閉じる">
+                  <X aria-hidden="true" size={19} />
+                </button>
+              </div>
+              <div className="agenda-search">
+                <Search aria-hidden="true" size={17} />
+                <input
+                  value={agendaQuery}
+                  onChange={(event) => setAgendaQuery(event.target.value)}
+                  placeholder="タイトル・場所・メモを検索"
+                  aria-label="予定を検索"
+                  autoFocus
+                />
+              </div>
+              <div className="agenda-list">
+                {filteredUpcomingEvents.length > 0 ? (
+                  filteredUpcomingEvents.map((event) => {
+                    const eventDay = formatDateInput(asDate(event.startsAt));
+                    return (
+                      <button
+                        className="agenda-item"
+                        type="button"
+                        key={event.id}
+                        onClick={() => {
+                          setAgendaOpen(false);
+                          router.push(`/calendar?family=${family.id}&month=${eventDay.slice(0, 7)}&day=${eventDay}&modal=day`);
+                        }}
+                      >
+                        <span className="agenda-color" style={{ backgroundColor: event.labelColor ?? "#fcf36d" }} />
+                        <span>
+                          <strong>{event.title}</strong>
+                          <small>
+                            {formatJapaneseDate(asDate(event.startsAt))}・
+                            {event.isAllDay ? "終日" : `${formatTime(asDate(event.startsAt))} - ${formatTime(asDate(event.endsAt))}`}
+                          </small>
+                          {event.location ? <small>{event.location}</small> : null}
+                        </span>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <p className="empty-text">該当する予定はありません。</p>
+                )}
+              </div>
+            </div>
+          </section>
+        ) : null}
+
         {settingsOpen ? (
           <section className="selected-day-modal" aria-labelledby="settings-title">
             <button
@@ -843,6 +1063,81 @@ export function CalendarWorkspace({
               </div>
 
               <div className="settings-content">
+                <section className="settings-section">
+                  <div className="settings-section-head">
+                    <h3>最近削除した予定</h3>
+                    <p>削除した予定を元に戻せます。繰り返し予定はまとめて復元できます。</p>
+                  </div>
+                  {family.recentlyDeletedEvents.length > 0 ? (
+                    <div className="deleted-event-list">
+                      {family.recentlyDeletedEvents.map((event) => (
+                        <article className="deleted-event-item" key={event.id}>
+                          <div>
+                            <strong>{event.title}</strong>
+                            <small>{formatJapaneseDate(asDate(event.startsAt))}</small>
+                            {event.recurrenceSeriesId ? (
+                              <small>
+                                {repeatRuleLabels[event.recurrenceRule ?? ""] ?? "一括作成"}・削除済み{event.deletedCount}件
+                              </small>
+                            ) : null}
+                          </div>
+                          <div className="deleted-event-actions">
+                            <form action={restoreEventAction}>
+                              <input type="hidden" name="eventId" value={event.id} />
+                              <input type="hidden" name="familySpaceId" value={family.id} />
+                              <input type="hidden" name="restoreScope" value="occurrence" />
+                              <button className="secondary-button" type="submit">
+                                {event.recurrenceSeriesId ? "この回を復元" : "復元"}
+                              </button>
+                            </form>
+                            {event.recurrenceSeriesId ? (
+                              <form action={restoreEventAction}>
+                                <input type="hidden" name="eventId" value={event.id} />
+                                <input type="hidden" name="familySpaceId" value={family.id} />
+                                <input type="hidden" name="restoreScope" value="series" />
+                                <button className="secondary-button" type="submit">すべて復元</button>
+                              </form>
+                            ) : null}
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="empty-text">復元できる予定はありません。</p>
+                  )}
+                </section>
+
+                <section className="settings-section">
+                  <div className="settings-section-head">
+                    <h3>変更履歴</h3>
+                    <p>予定の作成・編集・削除・復元を新しい順に表示します。</p>
+                  </div>
+                  {family.recentActivity.length > 0 ? (
+                    <div className="activity-list">
+                      {family.recentActivity.map((activity) => (
+                        <div className="activity-item" key={activity.id}>
+                          <span className={`activity-action activity-${activity.action}`}>
+                            {activityLabels[activity.action] ?? activity.action}
+                          </span>
+                          <span>
+                            <strong>{activity.eventTitle}</strong>
+                            <small>
+                              {activity.userName}・{new Intl.DateTimeFormat("ja-JP", {
+                                month: "numeric",
+                                day: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              }).format(asDate(activity.createdAt))}
+                            </small>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="empty-text">これからの変更がここに記録されます。</p>
+                  )}
+                </section>
+
                 <section className="settings-section">
                   <div className="settings-section-head">
                     <h3>表示中のカレンダー</h3>
@@ -900,6 +1195,16 @@ export function CalendarWorkspace({
                           <Send aria-hidden="true" size={16} />
                           メッセージで送る
                         </button>
+                        {currentMembership?.role === "admin" ? (
+                          <details className="invite-regenerate-details">
+                            <summary>招待コードを再発行</summary>
+                            <p className="field-hint">以前の招待コードとリンクは使えなくなります。</p>
+                            <form action={regenerateInviteCodeAction}>
+                              <input type="hidden" name="familySpaceId" value={family.id} />
+                              <button className="danger-button" type="submit">新しいコードを発行</button>
+                            </form>
+                          </details>
+                        ) : null}
                         {inviteFeedback ? <p className="invite-feedback">{inviteFeedback}</p> : null}
                       </div>
                     </div>
@@ -973,28 +1278,47 @@ export function CalendarWorkspace({
                           </Link>
                         </div>
 
+                        {membership.role === "admin" ? (
                         <details className="calendar-delete-details">
-                          <summary>このカレンダーを削除</summary>
-                          <form action={deleteCalendarAction} className="calendar-delete-form">
+                          <summary>このカレンダーをアーカイブ</summary>
+                          <form action={archiveCalendarAction} className="calendar-delete-form">
                             <input type="hidden" name="familySpaceId" value={membership.familySpaceId} />
                             <input type="hidden" name="currentFamilySpaceId" value={family.id} />
-                            <label htmlFor={`deleteCalendar-${membership.id}`}>確認のため「削除」と入力</label>
+                            <label htmlFor={`deleteCalendar-${membership.id}`}>確認のため「アーカイブ」と入力</label>
                             <div className="inline-form-row">
                               <input
                                 id={`deleteCalendar-${membership.id}`}
                                 name="confirmDelete"
-                                placeholder="削除"
+                                placeholder="アーカイブ"
                                 required
                               />
                               <button className="danger-button" type="submit">
-                                削除
+                                アーカイブ
                               </button>
                             </div>
                           </form>
                         </details>
+                        ) : null}
                       </article>
                     ))}
                   </div>
+
+                  {archivedMemberships.length > 0 ? (
+                    <div className="archived-calendar-settings">
+                      <h4>アーカイブ済み</h4>
+                      {archivedMemberships.map((membership) => (
+                        <form action={restoreCalendarAction} className="archived-calendar-item" key={membership.id}>
+                          <input type="hidden" name="familySpaceId" value={membership.familySpaceId} />
+                          <span>{membership.familySpace.name}</span>
+                          {membership.role === "admin" ? (
+                            <button className="secondary-button" type="submit">復元</button>
+                          ) : (
+                            <small>管理者のみ復元できます</small>
+                          )}
+                        </form>
+                      ))}
+                    </div>
+                  ) : null}
                 </section>
               </div>
             </div>
@@ -1062,20 +1386,27 @@ export function CalendarWorkspace({
                             >
                               <SquarePen aria-hidden="true" size={16} />
                             </button>
-                            <form action={deleteEventAction}>
-                              <input type="hidden" name="eventId" value={event.id} />
-                              <input type="hidden" name="familySpaceId" value={family.id} />
-                              <input type="hidden" name="day" value={selectedDayKey} />
-                              <button className="mini-icon-button" type="submit" aria-label="予定を削除" title="予定を削除">
-                                <Trash2 aria-hidden="true" size={16} />
-                              </button>
-                            </form>
+                            <button
+                              className="mini-icon-button"
+                              type="button"
+                              onClick={() => setDeletingEvent(event)}
+                              aria-label="予定を削除"
+                              title="予定を削除"
+                            >
+                              <Trash2 aria-hidden="true" size={16} />
+                            </button>
                           </div>
                         </div>
                         <p className="event-meta">
                           <PencilLine aria-hidden="true" size={14} />
                           入力: {event.creator.displayName}
                         </p>
+                        {event.recurrenceSeriesId ? (
+                          <p className="event-meta">
+                            <RefreshCw aria-hidden="true" size={14} />
+                            繰り返し: {repeatRuleLabels[event.recurrenceRule ?? ""] ?? "あり"}
+                          </p>
+                        ) : null}
                         {assigneeLabel ? <p className="event-meta">担当: {assigneeLabel}</p> : null}
                         {event.location ? (
                           <p className="event-meta">
@@ -1093,6 +1424,44 @@ export function CalendarWorkspace({
               <button className="primary-button modal-add-button" type="button" onClick={openAddForm}>
                 この日に予定を追加
               </button>
+
+              {deletingEvent ? (
+                <div className="delete-event-confirm" role="alertdialog" aria-modal="true" aria-labelledby="delete-event-title">
+                  <div>
+                    <h3 id="delete-event-title">「{deletingEvent.title}」を削除しますか？</h3>
+                    <p className="field-hint">
+                      {deletingEvent.recurrenceSeriesId
+                        ? "この回だけ削除するか、この繰り返し予定をすべて削除するか選べます。"
+                        : "この予定だけを削除します。"}
+                    </p>
+                  </div>
+                  <div className="delete-event-actions">
+                    <button className="secondary-button" type="button" onClick={() => setDeletingEvent(null)}>
+                      キャンセル
+                    </button>
+                    <form action={deleteEventAction}>
+                      <input type="hidden" name="eventId" value={deletingEvent.id} />
+                      <input type="hidden" name="familySpaceId" value={family.id} />
+                      <input type="hidden" name="day" value={selectedDayKey} />
+                      <input type="hidden" name="deleteScope" value="occurrence" />
+                      <button className="danger-button" type="submit">
+                        {deletingEvent.recurrenceSeriesId ? "今回だけ消す" : "削除する"}
+                      </button>
+                    </form>
+                    {deletingEvent.recurrenceSeriesId ? (
+                      <form action={deleteEventAction}>
+                        <input type="hidden" name="eventId" value={deletingEvent.id} />
+                        <input type="hidden" name="familySpaceId" value={family.id} />
+                        <input type="hidden" name="day" value={selectedDayKey} />
+                        <input type="hidden" name="deleteScope" value="series" />
+                        <button className="danger-button danger-button-strong" type="submit">
+                          すべて消す
+                        </button>
+                      </form>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
             </div>
           </section>
         ) : null}
@@ -1158,34 +1527,21 @@ export function CalendarWorkspace({
 
                 <TitleLabelColorFields defaultColor={copySourceEvent?.labelColor} />
 
-                <div className="two-cols">
-                  <div>
-                    <label htmlFor="date">開始日</label>
-                    <input
-                      id="date"
-                      name="date"
-                      type="date"
-                      value={eventFormDateKey}
-                      onChange={(event) => setEventFormDateKey(event.target.value)}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="endDate">終了日</label>
-                    <input id="endDate" name="endDate" type="date" defaultValue={copySourceDateKey} />
-                  </div>
+                <div>
+                  <label htmlFor="date">日付</label>
+                  <input
+                    id="date"
+                    name="date"
+                    type="date"
+                    value={eventFormDateKey}
+                    onChange={(event) => setEventFormDateKey(event.target.value)}
+                    required
+                  />
                 </div>
 
-                <div className="two-cols">
-                  <div>
-                    <label htmlFor="repeatRule">繰り返し</label>
-                    <select id="repeatRule" name="repeatRule" defaultValue="none">
-                      <option value="none">なし</option>
-                      <option value="daily">毎日</option>
-                      <option value="weekly">毎週</option>
-                      <option value="monthly">毎月</option>
-                    </select>
-                  </div>
+                <RepeatFields baseDate={eventFormDateKey} />
+
+                <div>
                   <label className="checkbox-row">
                     <input name="isAllDay" type="checkbox" defaultChecked={copySourceEvent?.isAllDay ?? false} />
                     終日
@@ -1303,6 +1659,27 @@ export function CalendarWorkspace({
                 <input type="hidden" name="eventId" value={editingEvent.id} />
                 <input type="hidden" name="familySpaceId" value={family.id} />
 
+                {editingEvent.recurrenceSeriesId ? (
+                  <div>
+                    <label htmlFor="editScope">変更する範囲</label>
+                    <select
+                      id="editScope"
+                      name="editScope"
+                      value={editScope}
+                      onChange={(event) => setEditScope(event.target.value as EditScope)}
+                    >
+                      <option value="occurrence">今回だけ</option>
+                      <option value="future">今回以降すべて</option>
+                      <option value="series">すべての予定</option>
+                    </select>
+                    <p className="field-hint">
+                      複数回を選んだ場合、各予定の日付は保ったままタイトル・時間・担当・場所・メモを変更します。
+                    </p>
+                  </div>
+                ) : (
+                  <input type="hidden" name="editScope" value="occurrence" />
+                )}
+
                 <div>
                   <label htmlFor="editTitlePreset">タイトル</label>
                   <select
@@ -1331,9 +1708,9 @@ export function CalendarWorkspace({
 
                 <TitleLabelColorFields defaultColor={editingEvent.labelColor} />
 
-                <div className="two-cols">
-                  <div>
-                    <label htmlFor="editDate">開始日</label>
+                <div>
+                  <label htmlFor="editDate">日付</label>
+                  {editScope === "occurrence" ? (
                     <input
                       id="editDate"
                       name="date"
@@ -1341,28 +1718,26 @@ export function CalendarWorkspace({
                       defaultValue={formatDateInput(asDate(editingEvent.startsAt))}
                       required
                     />
-                  </div>
-                  <div>
-                    <label htmlFor="editEndDate">終了日</label>
-                    <input
-                      id="editEndDate"
-                      name="endDate"
-                      type="date"
-                      defaultValue={formatDateInput(asDate(editingEvent.startsAt))}
-                    />
-                  </div>
+                  ) : (
+                    <>
+                      <input
+                        id="editDate"
+                        type="date"
+                        value={formatDateInput(asDate(editingEvent.startsAt))}
+                        disabled
+                      />
+                      <input type="hidden" name="date" value={formatDateInput(asDate(editingEvent.startsAt))} />
+                    </>
+                  )}
                 </div>
 
-                <div className="two-cols">
-                  <div>
-                    <label htmlFor="editRepeatRule">繰り返し</label>
-                    <select id="editRepeatRule" name="repeatRule" defaultValue="none">
-                      <option value="none">なし</option>
-                      <option value="daily">毎日</option>
-                      <option value="weekly">毎週</option>
-                      <option value="monthly">毎月</option>
-                    </select>
-                  </div>
+                {editingEvent.recurrenceSeriesId ? (
+                  <p className="recurrence-edit-note">
+                    {editScope === "occurrence" ? "この回だけを編集します。" : "選択した範囲へ同じ変更を適用します。"}
+                  </p>
+                ) : null}
+
+                <div>
                   <label className="checkbox-row">
                     <input name="isAllDay" type="checkbox" defaultChecked={editingEvent.isAllDay} />
                     終日
@@ -1390,7 +1765,9 @@ export function CalendarWorkspace({
                   </div>
                 </div>
 
-                <CopyDatesField inputId="editCopyDates" baseDate={formatDateInput(asDate(editingEvent.startsAt))} />
+                {editScope === "occurrence" ? (
+                  <CopyDatesField inputId="editCopyDates" baseDate={formatDateInput(asDate(editingEvent.startsAt))} />
+                ) : null}
 
                 <fieldset className="assignee-fieldset">
                   <legend>担当</legend>

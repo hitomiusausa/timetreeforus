@@ -110,6 +110,7 @@ export async function updateCalendarNameAction(formData: FormData) {
       familySpaceId,
       userId: user.id,
       role: "admin",
+      familySpace: { archivedAt: null },
     },
   });
 
@@ -130,14 +131,14 @@ export async function updateCalendarNameAction(formData: FormData) {
   redirect(`/calendar?family=${redirectFamilyId}`);
 }
 
-export async function deleteCalendarAction(formData: FormData) {
+export async function archiveCalendarAction(formData: FormData) {
   const user = await requireUser();
   const familySpaceId = String(formData.get("familySpaceId") ?? "");
   const currentFamilySpaceId = String(formData.get("currentFamilySpaceId") ?? familySpaceId);
   const confirm = String(formData.get("confirmDelete") ?? "").trim();
   const redirectFamilyId = currentFamilySpaceId || familySpaceId;
 
-  if (!familySpaceId || confirm !== "削除") {
+  if (!familySpaceId || confirm !== "アーカイブ") {
     redirect(`/calendar${redirectFamilyId ? `?family=${redirectFamilyId}` : ""}`);
   }
 
@@ -146,6 +147,7 @@ export async function deleteCalendarAction(formData: FormData) {
       familySpaceId,
       userId: user.id,
       role: "admin",
+      familySpace: { archivedAt: null },
     },
   });
 
@@ -159,20 +161,91 @@ export async function deleteCalendarAction(formData: FormData) {
       familySpaceId: {
         not: familySpaceId,
       },
+      familySpace: {
+        archivedAt: null,
+      },
     },
     orderBy: {
       createdAt: "asc",
     },
   });
 
-  await prisma.familySpace.delete({
+  await prisma.familySpace.update({
     where: {
       id: familySpaceId,
+    },
+    data: {
+      archivedAt: new Date(),
     },
   });
 
   revalidatePath("/calendar");
-  redirect(nextMembership ? `/calendar?family=${nextMembership.familySpaceId}` : "/setup");
+  const destinationFamilyId =
+    currentFamilySpaceId && currentFamilySpaceId !== familySpaceId
+      ? currentFamilySpaceId
+      : nextMembership?.familySpaceId;
+  redirect(destinationFamilyId ? `/calendar?family=${destinationFamilyId}` : "/setup");
+}
+
+export async function restoreCalendarAction(formData: FormData) {
+  const user = await requireUser();
+  const familySpaceId = String(formData.get("familySpaceId") ?? "");
+
+  if (!familySpaceId) {
+    redirect("/setup");
+  }
+
+  const adminMembership = await prisma.familyMember.findFirst({
+    where: {
+      familySpaceId,
+      userId: user.id,
+      role: "admin",
+      familySpace: {
+        archivedAt: {
+          not: null,
+        },
+      },
+    },
+  });
+
+  if (!adminMembership) {
+    redirect("/setup");
+  }
+
+  await prisma.familySpace.update({
+    where: { id: familySpaceId },
+    data: { archivedAt: null },
+  });
+
+  revalidatePath("/");
+  revalidatePath("/calendar");
+  revalidatePath("/setup");
+  redirect(`/calendar?family=${familySpaceId}`);
+}
+
+export async function regenerateInviteCodeAction(formData: FormData) {
+  const user = await requireUser();
+  const familySpaceId = String(formData.get("familySpaceId") ?? "");
+
+  if (!familySpaceId) {
+    redirect("/calendar");
+  }
+
+  const adminMembership = await prisma.familyMember.findFirst({
+    where: { familySpaceId, userId: user.id, role: "admin", familySpace: { archivedAt: null } },
+  });
+
+  if (!adminMembership) {
+    redirect(`/calendar?family=${familySpaceId}`);
+  }
+
+  await prisma.familySpace.update({
+    where: { id: familySpaceId },
+    data: { inviteCode: await uniqueInviteCode() },
+  });
+
+  revalidatePath("/calendar");
+  redirect(`/calendar?family=${familySpaceId}`);
 }
 
 export async function createTitlePresetAction(formData: FormData) {

@@ -13,21 +13,43 @@ export function formatMonthInput(date: Date) {
   return `${year}-${month}`;
 }
 
+export function getTodayDateKey() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
 export function parseMonth(value?: string) {
-  if (!value || !/^\d{4}-\d{2}$/.test(value)) {
-    return startOfMonth(new Date());
+  const match = value?.match(/^(\d{4})-(\d{2})$/);
+
+  if (!match || Number(match[2]) < 1 || Number(match[2]) > 12) {
+    const [year, month] = getTodayDateKey().split("-").map(Number);
+    return new Date(year, month - 1, 1);
   }
 
-  const [year, month] = value.split("-").map(Number);
+  const year = Number(match[1]);
+  const month = Number(match[2]);
   return new Date(year, month - 1, 1);
 }
 
 export function parseDate(value?: string) {
-  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return new Date();
+  const match = value?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+  if (match) {
+    const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+
+    if (formatDateInput(date) === value) {
+      return date;
+    }
   }
 
-  const [year, month, day] = value.split("-").map(Number);
+  const [year, month, day] = getTodayDateKey().split("-").map(Number);
   return new Date(year, month - 1, day);
 }
 

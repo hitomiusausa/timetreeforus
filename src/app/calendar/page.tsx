@@ -6,6 +6,7 @@ import {
   endOfMonth,
   formatDateInput,
   formatMonthInput,
+  getTodayDateKey,
   parseDate,
   parseMonth,
 } from "@/lib/calendar";
@@ -58,6 +59,33 @@ type CalendarQueryRow = {
       id: string;
       name: string;
     }>;
+    recentlyDeletedEvents: Array<{
+      id: string;
+      title: string;
+      startsAt: string;
+      deletedAt: string;
+      recurrenceSeriesId: string | null;
+      recurrenceRule: string | null;
+      deletedCount: number;
+    }>;
+    upcomingEvents: Array<{
+      id: string;
+      title: string;
+      startsAt: string;
+      endsAt: string;
+      isAllDay: boolean;
+      location: string | null;
+      note: string | null;
+      labelColor: string | null;
+    }>;
+    recentActivity: Array<{
+      id: string;
+      action: string;
+      eventTitle: string;
+      scope: string;
+      createdAt: string;
+      userName: string;
+    }>;
     events: Array<{
       id: string;
       categoryId: string | null;
@@ -69,6 +97,8 @@ type CalendarQueryRow = {
       location: string | null;
       note: string | null;
       assignedTo: string | null;
+      recurrenceSeriesId: string | null;
+      recurrenceRule: string | null;
       category: {
         id: string;
         name: string;
@@ -91,6 +121,16 @@ type CalendarQueryRow = {
   memberships: Array<{
     id: string;
     familySpaceId: string;
+    role: string;
+    familySpace: {
+      id: string;
+      name: string;
+    };
+  }>;
+  archivedMemberships: Array<{
+    id: string;
+    familySpaceId: string;
+    role: string;
     familySpace: {
       id: string;
       name: string;
@@ -113,6 +153,9 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
   const rangeStart = monthDays[0];
   const rangeEnd = endOfMonth(monthDays[monthDays.length - 1]);
   const requestedFamilyId = params.family ?? "";
+  const upcomingStart = new Date(`${getTodayDateKey()}T00:00:00Z`);
+  const upcomingEnd = new Date(upcomingStart);
+  upcomingEnd.setUTCFullYear(upcomingEnd.getUTCFullYear() + 1);
 
   const [calendarData] = await prisma.$queryRaw<CalendarQueryRow[]>`
     WITH current_session AS (
@@ -126,8 +169,10 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
       SELECT
         fm.id,
         fm.family_space_id,
+        fm.role,
         fm.created_at,
-        fs.name AS family_space_name
+        fs.name AS family_space_name,
+        fs.archived_at
       FROM "family_members" fm
       JOIN "family_spaces" fs ON fs.id = fm.family_space_id
       WHERE fm.user_id = (SELECT user_id FROM current_session)
@@ -139,11 +184,13 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
           SELECT family_space_id
           FROM user_memberships
           WHERE family_space_id = ${requestedFamilyId}
+            AND archived_at IS NULL
           LIMIT 1
         ),
         (
           SELECT family_space_id
           FROM user_memberships
+          WHERE archived_at IS NULL
           ORDER BY created_at ASC
           LIMIT 1
         )
@@ -164,6 +211,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
             json_build_object(
               'id', id,
               'familySpaceId', family_space_id,
+              'role', role,
               'familySpace', json_build_object(
                 'id', family_space_id,
                 'name', family_space_name
@@ -172,9 +220,29 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
             ORDER BY created_at ASC
           )
           FROM user_memberships
+          WHERE archived_at IS NULL
         ),
         '[]'::json
       ) AS "memberships",
+      COALESCE(
+        (
+          SELECT json_agg(
+            json_build_object(
+              'id', id,
+              'familySpaceId', family_space_id,
+              'role', role,
+              'familySpace', json_build_object(
+                'id', family_space_id,
+                'name', family_space_name
+              )
+            )
+            ORDER BY created_at ASC
+          )
+          FROM user_memberships
+          WHERE archived_at IS NOT NULL
+        ),
+        '[]'::json
+      ) AS "archivedMemberships",
       (
         SELECT json_build_object(
           'id', fs.id,
@@ -230,6 +298,126 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
             ),
             '[]'::json
           ),
+          'recentlyDeletedEvents', COALESCE(
+            (
+              SELECT json_agg(
+                json_build_object(
+                  'id', deleted_event.id,
+                  'title', deleted_event.title,
+                  'startsAt', deleted_event.starts_at,
+                  'deletedAt', deleted_event.deleted_at,
+                  'recurrenceSeriesId', deleted_event.recurrence_series_id,
+                  'recurrenceRule', deleted_event.recurrence_rule,
+                  'deletedCount', deleted_event.deleted_count
+                )
+                ORDER BY deleted_event.deleted_at DESC
+              )
+              FROM (
+                SELECT
+                  e.id,
+                  e.title,
+                  e.starts_at,
+                  e.deleted_at,
+                  e.recurrence_series_id,
+                  e.recurrence_rule,
+                  CASE
+                    WHEN e.recurrence_series_id IS NULL THEN 1
+                    ELSE (
+                      SELECT COUNT(*)::int
+                      FROM "events" series_event
+                      WHERE series_event.family_space_id = e.family_space_id
+                        AND series_event.recurrence_series_id = e.recurrence_series_id
+                        AND series_event.deleted_at IS NOT NULL
+                    )
+                  END AS deleted_count
+                FROM "events" e
+                WHERE e.family_space_id = fs.id
+                  AND e.deleted_at IS NOT NULL
+                  AND (
+                    e.recurrence_series_id IS NULL
+                    OR e.id = (
+                      SELECT latest_series_event.id
+                      FROM "events" latest_series_event
+                      WHERE latest_series_event.family_space_id = e.family_space_id
+                        AND latest_series_event.recurrence_series_id = e.recurrence_series_id
+                        AND latest_series_event.deleted_at IS NOT NULL
+                      ORDER BY latest_series_event.deleted_at DESC, latest_series_event.starts_at DESC
+                      LIMIT 1
+                    )
+                  )
+                ORDER BY e.deleted_at DESC
+                LIMIT 20
+              ) deleted_event
+            ),
+            '[]'::json
+          ),
+          'upcomingEvents', COALESCE(
+            (
+              SELECT json_agg(
+                json_build_object(
+                  'id', upcoming_event.id,
+                  'title', upcoming_event.title,
+                  'startsAt', upcoming_event.starts_at,
+                  'endsAt', upcoming_event.ends_at,
+                  'isAllDay', upcoming_event.is_all_day,
+                  'location', upcoming_event.location,
+                  'note', upcoming_event.note,
+                  'labelColor', upcoming_event.label_color
+                )
+                ORDER BY upcoming_event.starts_at ASC
+              )
+              FROM (
+                SELECT
+                  e.id,
+                  e.title,
+                  e.starts_at,
+                  e.ends_at,
+                  e.is_all_day,
+                  e.location,
+                  e.note,
+                  COALESCE(e.label_color, upcoming_category.color) AS label_color
+                FROM "events" e
+                LEFT JOIN "event_categories" upcoming_category ON upcoming_category.id = e.category_id
+                WHERE e.family_space_id = fs.id
+                  AND e.deleted_at IS NULL
+                  AND e.starts_at >= ${upcomingStart}
+                  AND e.starts_at <= ${upcomingEnd}
+                ORDER BY e.starts_at ASC
+                LIMIT 200
+              ) upcoming_event
+            ),
+            '[]'::json
+          ),
+          'recentActivity', COALESCE(
+            (
+              SELECT json_agg(
+                json_build_object(
+                  'id', activity.id,
+                  'action', activity.action,
+                  'eventTitle', activity.event_title,
+                  'scope', activity.scope,
+                  'createdAt', activity.created_at,
+                  'userName', activity.user_name
+                )
+                ORDER BY activity.created_at DESC
+              )
+              FROM (
+                SELECT
+                  log.id,
+                  log.action,
+                  log.event_title,
+                  log.scope,
+                  TO_CHAR(log.created_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS created_at,
+                  log_user.display_name AS user_name
+                FROM "event_change_logs" log
+                JOIN "users" log_user ON log_user.id = log.user_id
+                WHERE log.family_space_id = fs.id
+                ORDER BY log.created_at DESC
+                LIMIT 20
+              ) activity
+            ),
+            '[]'::json
+          ),
           'events', COALESCE(
             (
               SELECT json_agg(
@@ -244,6 +432,8 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                   'location', e.location,
                   'note', e.note,
                   'assignedTo', e.assigned_to,
+                  'recurrenceSeriesId', e.recurrence_series_id,
+                  'recurrenceRule', e.recurrence_rule,
                   'category', CASE
                     WHEN c.id IS NULL THEN NULL
                     ELSE json_build_object(
@@ -320,6 +510,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
       currentUserName={calendarData.currentUser?.displayName ?? ""}
       family={family}
       memberships={calendarData.memberships}
+      archivedMemberships={calendarData.archivedMemberships}
       initialMonth={formatMonthInput(monthDate)}
       initialDay={formatDateInput(selectedDate)}
       initialModal={normalizeModal(params.modal)}

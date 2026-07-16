@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { Home, KeyRound } from "lucide-react";
-import { createFamilyAction, joinFamilyAction } from "@/app/actions/family";
+import { createFamilyAction, joinFamilyAction, restoreCalendarAction } from "@/app/actions/family";
 import { requireUser } from "@/lib/session";
 
 const errorMessages: Record<string, string> = {
@@ -16,7 +16,7 @@ type SetupPageProps = {
 export default async function SetupPage({ searchParams }: SetupPageProps) {
   const user = await requireUser();
 
-  if (user.memberships.length > 0) {
+  if (user.memberships.some((membership) => membership.familySpace.archivedAt === null)) {
     redirect("/calendar");
   }
 
@@ -69,6 +69,28 @@ export default async function SetupPage({ searchParams }: SetupPageProps) {
           </form>
         </section>
       </div>
+
+      {user.memberships.some((membership) => membership.familySpace.archivedAt !== null) ? (
+        <section className="setup-card archived-calendar-card">
+          <h2>アーカイブしたカレンダー</h2>
+          <p className="field-hint">予定を残したまま、カレンダーを元に戻せます。</p>
+          <div className="archived-calendar-list">
+            {user.memberships
+              .filter((membership) => membership.familySpace.archivedAt !== null)
+              .map((membership) => (
+                <form action={restoreCalendarAction} className="archived-calendar-item" key={membership.id}>
+                  <input type="hidden" name="familySpaceId" value={membership.familySpaceId} />
+                  <span>{membership.familySpace.name}</span>
+                  {membership.role === "admin" ? (
+                    <button className="secondary-button" type="submit">復元</button>
+                  ) : (
+                    <small>管理者のみ復元できます</small>
+                  )}
+                </form>
+              ))}
+          </div>
+        </section>
+      ) : null}
     </main>
   );
 }

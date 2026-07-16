@@ -3,11 +3,12 @@ import { prisma } from "./prisma";
 export const memberColors = ["#52DE3F", "#6BE69A", "#6BE6D7", "#6BB7E6", "#96A0ED", "#E66B79"];
 
 export async function ensureFamilyMember(userId: string, familySpaceId: string) {
-  const membership = await prisma.familyMember.findUnique({
+  const membership = await prisma.familyMember.findFirst({
     where: {
-      familySpaceId_userId: {
-        familySpaceId,
-        userId,
+      familySpaceId,
+      userId,
+      familySpace: {
+        archivedAt: null,
       },
     },
   });
@@ -27,7 +28,7 @@ export async function joinFamilyByInviteCode(userId: string, inviteCode: string)
   }
 
   const family = await prisma.familySpace.findUnique({
-    where: { inviteCode: normalizedInviteCode },
+    where: { inviteCode: normalizedInviteCode, archivedAt: null },
     include: {
       members: true,
     },

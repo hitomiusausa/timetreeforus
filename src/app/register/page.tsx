@@ -18,7 +18,7 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
   const user = await getCurrentUser();
 
   if (user) {
-    redirect(user.memberships.length > 0 ? "/calendar" : "/setup");
+    redirect(user.memberships.some((membership) => membership.familySpace.archivedAt === null) ? "/calendar" : "/setup");
   }
 
   const params = await searchParams;

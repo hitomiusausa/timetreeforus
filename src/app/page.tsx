@@ -8,10 +8,9 @@ export default async function Home() {
     redirect("/login");
   }
 
-  if (user.memberships.length === 0) {
+  if (!user.memberships.some((membership) => membership.familySpace.archivedAt === null)) {
     redirect("/setup");
   }
 
   redirect("/calendar");
 }
-

@@ -1,4 +1,4 @@
-const CACHE_NAME = "timetreeforus-static-v1";
+const CACHE_NAME = "timetreeforus-static-v2";
 const PRECACHE_URLS = [
   "/offline.html",
   "/logo.webp",
@@ -44,7 +44,9 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (request.mode === "navigate") {
-    event.respondWith(fetch(request).catch(() => caches.match("/offline.html")));
+    event.respondWith(
+      fetch(request, { cache: "no-store" }).catch(() => caches.match("/offline.html")),
+    );
     return;
   }
 
